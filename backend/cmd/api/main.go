@@ -72,11 +72,13 @@ func main() {
 	// Защищённые маршруты
 	protected := api.Group("/", middleware.AuthRequired())
 	protected.Get("/auth/me", authHandler.Me)
+	protected.Put("/auth/profile", authHandler.UpdateProfile)
+	protected.Post("/auth/change-password", authHandler.ChangePassword)
 	protected.Get("/courses/my", courseHandler.GetMyCourses)
 	protected.Get("/courses", courseHandler.GetAllCourses)
 	protected.Get("/courses/:id", courseHandler.GetCourse)
 	protected.Get("/courses/:id/lessons/:lessonId", courseHandler.GetLesson)
-	protected.Post("/courses/:id/activate", courseHandler.ActivateWithCode) // ← новый маршрут
+	protected.Post("/courses/:id/activate", courseHandler.ActivateWithCode)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
