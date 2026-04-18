@@ -29,7 +29,7 @@ const Sidebar = () => {
                     </Link>
                 ))}
                 <Separator className="my-2" />
-                <Link href="https://t.me/YangChessmanClub" target="_blank">
+                <Link href="https://t.me/GM_on_the_Rakbot" target="_blank">
                     <Button variant="ghost" className="w-full justify-start">
                 Вступить в клуб в tg
                     </Button>

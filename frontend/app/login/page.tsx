@@ -1,14 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 const LoginPage = () => {
-  const router = useRouter()
   const [form, setForm] = useState({ email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -23,12 +22,13 @@ const LoginPage = () => {
     setError("")
     try {
       const res = await api.post("/auth/login", form)
-      localStorage.setItem("access_token", res.data.access_token)
-      router.push("/dashboard")
+      const token = res.data?.access_token
+      if (!token) throw new Error("Токен не получен")
+      localStorage.setItem("access_token", token)
+      window.location.href = "/dashboard"
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
       setError(error.response?.data?.error || "Неверный email или пароль")
-    } finally {
       setLoading(false)
     }
   }
@@ -43,7 +43,7 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label className="text-sm font-medium">Почта</label>
               <Input
                 name="email"
                 type="email"
@@ -74,9 +74,9 @@ const LoginPage = () => {
             </Button>
             <p className="text-sm text-muted-foreground">
               Нет аккаунта?{" "}
-              <a href="/register" className="text-primary underline">
+              <Link href="/register" className="text-primary underline">
                 Зарегистрироваться
-              </a>
+              </Link>
             </p>
           </CardFooter>
         </form>
