@@ -128,3 +128,8 @@
     @apply font-sans;
   }
 }
+
+/* голубой акцент */
+.bg-accent { background-color: #0099EC; }
+.text-accent { color: #0099EC; }
+.border-accent { border-color: #0099EC; }

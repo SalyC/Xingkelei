@@ -4,13 +4,15 @@ import (
 	"os"
 	"strings"
 
+	"backend/internal/models"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
-func AuthRequired() fiber.Handler {
+func AuthRequired(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Пропускаем preflight CORS запросы
 		if c.Method() == fiber.MethodOptions {
 			return c.Next()
 		}
@@ -35,8 +37,14 @@ func AuthRequired() fiber.Handler {
 
 		claims := token.Claims.(jwt.MapClaims)
 		userID := uint(claims["user_id"].(float64))
-		c.Locals("user_id", userID)
 
+		// Проверяем, не заблокирован ли пользователь
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil || user.IsBlocked {
+			return c.Status(403).JSON(fiber.Map{"error": "Account is blocked or not found"})
+		}
+
+		c.Locals("user_id", userID)
 		return c.Next()
 	}
 }

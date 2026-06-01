@@ -1,0 +1,178 @@
+.footer {
+  background: #0099EC;
+  border-radius: 30px 30px 0 0;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.footerContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 46px 203px 40px 203px;
+}
+
+.footerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin-bottom: 30px;
+}
+
+.footerBrand {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.brandLogo {
+  width: 100px;
+  height: 100px;
+  background: #D9D9D9;
+  border-radius: 20px;
+  flex-shrink: 0;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="%23B0B0B0"><rect width="100" height="100" fill="%23D9D9D9" rx="20"/><text x="50" y="55" font-size="12" text-anchor="middle" fill="%23777777">лого</text></svg>');
+  background-size: cover;
+}
+
+.brandTitle {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.contactsBlock {
+  text-align: right;
+}
+
+.contactsHeading {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.01em;
+  margin-bottom: 1rem;
+}
+
+.contactsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.contactsList p {
+  font-size: 1rem;
+  color: white;
+  opacity: 0.9;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.contactsList a {
+  color: white;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+  transition: border-color 0.2s;
+}
+
+.contactsList a:hover {
+  border-bottom-color: white;
+}
+
+.footerDivider {
+  width: 100%;
+  height: 0;
+  opacity: 0.7;
+  border: 2px solid #FFFFFF;
+  margin: 0 0 32px 0;
+}
+
+.footerBottom {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 40px;
+}
+
+.footerInfo {
+  flex: 1.2;
+  min-width: 240px;
+}
+
+.footerDescription {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: white;
+  opacity: 0.9;
+  margin-bottom: 1rem;
+  max-width: 480px;
+}
+
+.copyright {
+  font-size: 0.8rem;
+  color: white;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+}
+
+.footerCookie {
+  flex: 1;
+  min-width: 240px;
+}
+
+.cookieText {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: white;
+  opacity: 0.85;
+}
+
+@media (max-width: 1100px) {
+  .footerContainer {
+    padding: 40px 80px 32px 80px;
+  }
+  .brandTitle {
+    font-size: 2rem;
+  }
+  .contactsHeading {
+    font-size: 1.8rem;
+  }
+}
+
+@media (max-width: 800px) {
+  .footerContainer {
+    padding: 32px 32px 28px 32px;
+  }
+  .footerTop {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .contactsBlock {
+    text-align: left;
+    width: 100%;
+  }
+  .footerBottom {
+    flex-direction: column;
+  }
+  .brandTitle {
+    font-size: 1.8rem;
+  }
+  .brandLogo {
+    width: 70px;
+    height: 70px;
+  }
+}
+
+@media (max-width: 550px) {
+  .footerContainer {
+    padding: 28px 20px 24px 20px;
+  }
+  .brandTitle {
+    font-size: 1.6rem;
+  }
+  .contactsHeading {
+    font-size: 1.5rem;
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -22,6 +23,12 @@ import (
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using system environment variables")
+	}
+
+	// Создаём папку для аватаров, если её нет
+	avatarDir := filepath.Join("uploads", "avatars")
+	if err := os.MkdirAll(avatarDir, 0755); err != nil {
+		log.Fatal("Failed to create avatar directory:", err)
 	}
 
 	dsn := fmt.Sprintf(
@@ -60,25 +67,44 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	// Раздача статических файлов из папки uploads/avatars по пути /avatars
+	app.Static("/avatars", avatarDir)
+
 	authHandler := handlers.NewAuthHandler(db, redisClient)
 	courseHandler := handlers.NewCourseHandler(db)
+	lessonHandler := handlers.NewLessonHandler(db)
+	adminHandler := handlers.NewAdminHandler(db)
 
 	api := app.Group("/api")
 
 	// Публичные маршруты
 	api.Post("/auth/register", authHandler.Register)
 	api.Post("/auth/login", authHandler.Login)
+	api.Get("/public/courses/:id", courseHandler.GetPublicCourse)
 
 	// Защищённые маршруты
-	protected := api.Group("/", middleware.AuthRequired())
+	protected := api.Group("/", middleware.AuthRequired(db))
 	protected.Get("/auth/me", authHandler.Me)
 	protected.Put("/auth/profile", authHandler.UpdateProfile)
 	protected.Post("/auth/change-password", authHandler.ChangePassword)
+	protected.Post("/auth/avatar", authHandler.UploadAvatar)
+
+	protected.Post("/courses/:courseId/lessons/:lessonId/complete", lessonHandler.CompleteLesson)
+	protected.Get("/courses/:id/progress", lessonHandler.GetCourseProgress)
+	protected.Post("/courses/:id/complete", lessonHandler.CompleteCourse)
+
+	protected.Get("/certificates/my", lessonHandler.GetMyCertificates)
+
+	protected.Post("/courses/activate", courseHandler.ActivateByCode)
 	protected.Get("/courses/my", courseHandler.GetMyCourses)
 	protected.Get("/courses", courseHandler.GetAllCourses)
 	protected.Get("/courses/:id", courseHandler.GetCourse)
 	protected.Get("/courses/:id/lessons/:lessonId", courseHandler.GetLesson)
 	protected.Post("/courses/:id/activate", courseHandler.ActivateWithCode)
+
+	protected.Get("/admin/users", middleware.AdminRequired(db), adminHandler.GetUsers)
+	protected.Post("/admin/users/:id/toggle-block", middleware.AdminRequired(db), adminHandler.ToggleBlock)
+	protected.Get("/admin/users/:id/courses", middleware.AdminRequired(db), adminHandler.GetUserCourses)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
@@ -94,42 +120,96 @@ func seedDatabase(db *gorm.DB) {
 		return
 	}
 
-	course := models.Course{
-		Title:       "Психология общения",
-		Description: "Курс посвящён основам эффективной коммуникации, невербальным сигналам и управлению конфликтами.",
-		Price:       0,
-		IsPublished: true,
-		ImageURL:    "https://placehold.co/600x400",
-		AccessCode:  "DEV2026",
-	}
-	if err := db.Create(&course).Error; err != nil {
-		log.Println("Failed to create seed course:", err)
-		return
+	courses := []models.Course{
+		{
+			Title:       "Управление финансами",
+			Description: "Научитесь контролировать личный бюджет, инвестировать и достигать финансовых целей.",
+			Price:       0,
+			IsPublished: true,
+			ImageURL:    "/javoronok.png",
+			AccessCode:  "FINANCE2026",
+		},
+		{
+			Title:       "Цена времени",
+			Description: "Эффективный тайм-менеджмент, приоритизация и избавление от прокрастинации.",
+			Price:       0,
+			IsPublished: true,
+			ImageURL:    "/finance.png",
+			AccessCode:  "TIME2026",
+		},
+		{
+			Title:       "Психология общения",
+			Description: "Освойте навыки уверенного общения, разрешения конфликтов и публичных выступлений.",
+			Price:       0,
+			IsPublished: true,
+			ImageURL:    "/psychology.png",
+			AccessCode:  "PSYCHO2026",
+		},
+		{
+			Title:       "Искусство коммуникации",
+			Description: "Практические техники для повседневного и делового общения.",
+			Price:       0,
+			IsPublished: true,
+			ImageURL:    "/timemanagement.png",
+			AccessCode:  "TALK2026",
+		},
 	}
 
-	lessons := []models.Lesson{
-		{CourseID: course.ID, Title: "Введение в психологию общения", Content: "Коммуникация — это основа человеческого взаимодействия...", Order: 1},
-		{CourseID: course.ID, Title: "Невербальная коммуникация", Content: "Жесты, мимика, поза — всё это говорит больше, чем слова...", Order: 2},
-		{CourseID: course.ID, Title: "Активное слушание", Content: "Умение слушать — важнейший навык в общении...", Order: 3},
+	// Уникальные видео для каждого урока
+	videos := map[string][]string{
+		"Управление финансами": {
+			"https://www.youtube.com/watch?v=F_9PnhbCcUM", // урок 1
+			"https://www.youtube.com/watch?v=Wg3hY6BQj4A", // урок 2
+			"https://www.youtube.com/watch?v=9GrZYLQqDqA", // урок 3
+		},
+		"Цена времени": {
+			"https://www.youtube.com/watch?v=F_9PnhbCcUM",
+			"https://www.youtube.com/watch?v=XfGm8Hc9QyY",
+			"https://www.youtube.com/watch?v=3JY8hJ9xGcE",
+		},
+		"Психология общения": {
+			"https://www.youtube.com/watch?v=F_9PnhbCcUM",
+			"https://www.youtube.com/watch?v=Hs5gF1zJ4XM",
+			"https://www.youtube.com/watch?v=V9fL7a5nDzM",
+		},
+		"Искусство коммуникации": {
+			"https://www.youtube.com/watch?v=F_9PnhbCcUM",
+			"https://www.youtube.com/watch?v=Nb4pG5mA8X4",
+			"https://www.youtube.com/watch?v=Kq4eH9jZ7VY",
+		},
 	}
-	for _, l := range lessons {
-		if err := db.Create(&l).Error; err != nil {
-			log.Println("Failed to create seed lesson:", err)
+
+	lessonTitles := []string{"Введение", "Основной модуль", "Практика"}
+
+	for _, course := range courses {
+		if err := db.Create(&course).Error; err != nil {
+			log.Printf("Failed to create course %s: %v", course.Title, err)
+			continue
+		}
+
+		urls, ok := videos[course.Title]
+		if !ok {
+			urls = []string{"", "", ""}
+		}
+
+		for i, title := range lessonTitles {
+			lesson := models.Lesson{
+				CourseID: course.ID,
+				Title:    title,
+				Content:  "Текст урока...",
+				VideoURL: urls[i],
+				Order:    i + 1,
+			}
+			db.Create(&lesson)
 		}
 	}
 
+	// Привязка первого пользователя к первому курсу (если пользователи уже есть)
 	var user models.User
 	if err := db.First(&user).Error; err == nil {
-		userCourse := models.UserCourse{
-			UserID:   user.ID,
-			CourseID: course.ID,
+		var firstCourse models.Course
+		if err := db.First(&firstCourse).Error; err == nil {
+			db.Create(&models.UserCourse{UserID: user.ID, CourseID: firstCourse.ID})
 		}
-		if err := db.Create(&userCourse).Error; err != nil {
-			log.Println("Failed to enroll first user in course:", err)
-		} else {
-			log.Printf("Test course '%s' assigned to user %s %s\n", course.Title, user.FirstName, user.LastName)
-		}
-	} else {
-		log.Println("No users found, skipping course enrollment")
 	}
 }

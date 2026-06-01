@@ -9,5 +9,7 @@ type Lesson struct {
 	CourseID  uint      `json:"course_id"`
 	Title     string    `json:"title"`
 	Content   string    `json:"content"`
+	VideoURL  string    `json:"video_url,omitempty"`
+	AudioURL  string    `json:"audio_url,omitempty"`
 	Order     int       `json:"order"`
 }

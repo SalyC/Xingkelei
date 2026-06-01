@@ -26,8 +26,14 @@ func (h *CourseHandler) GetMyCourses(c *fiber.Ctx) error {
 }
 
 func (h *CourseHandler) GetAllCourses(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
 	var courses []models.Course
-	h.db.Where("is_published = ?", true).Find(&courses)
+	subQuery := h.db.Table("user_courses").Select("course_id").Where("user_id = ?", userID)
+	err := h.db.Where("is_published = ? AND id NOT IN (?)", true, subQuery).Find(&courses).Error
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch courses"})
+	}
 	return c.JSON(fiber.Map{"data": courses})
 }
 
@@ -63,7 +69,7 @@ func (h *CourseHandler) GetLesson(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": lesson})
 }
 
-// ActivateWithCode активирует курс по коду доступа
+// ActivateWithCode активирует курс по ID и коду доступа
 type ActivateRequest struct {
 	Code string `json:"code"`
 }
@@ -85,7 +91,6 @@ func (h *CourseHandler) ActivateWithCode(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Course not found"})
 	}
 
-	// Код доступа по умолчанию DEV2026 (или берём из поля, если задано)
 	expectedCode := course.AccessCode
 	if expectedCode == "" {
 		expectedCode = "DEV2026"
@@ -95,7 +100,6 @@ func (h *CourseHandler) ActivateWithCode(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid access code"})
 	}
 
-	// Проверяем, не активирован ли уже курс
 	var existing models.UserCourse
 	if err := h.db.Where("user_id = ? AND course_id = ?", userID, courseID).First(&existing).Error; err == nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Course already activated"})
@@ -110,4 +114,60 @@ func (h *CourseHandler) ActivateWithCode(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "Course activated successfully"})
+}
+
+// ActivateByCode активирует курс по универсальному промокоду
+type ActivateByCodeRequest struct {
+	Code string `json:"code"`
+}
+
+func (h *CourseHandler) ActivateByCode(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
+	var req ActivateByCodeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	if req.Code == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Code is required"})
+	}
+
+	var course models.Course
+	if err := h.db.Where("access_code = ?", req.Code).First(&course).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid promo code"})
+	}
+
+	var existing models.UserCourse
+	if err := h.db.Where("user_id = ? AND course_id = ?", userID, course.ID).First(&existing).Error; err == nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Course already activated"})
+	}
+
+	userCourse := models.UserCourse{UserID: userID, CourseID: course.ID}
+	if err := h.db.Create(&userCourse).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to activate course"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Course activated successfully", "course": course})
+}
+
+// GetPublicCourse возвращает курс и его первый урок (демо) без проверки авторизации
+func (h *CourseHandler) GetPublicCourse(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid course ID"})
+	}
+
+	var course models.Course
+	if err := h.db.Preload("Lessons", func(db *gorm.DB) *gorm.DB {
+		return db.Order("lessons.order ASC").Limit(1)
+	}).First(&course, id).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Course not found"})
+	}
+
+	if len(course.Lessons) == 0 {
+		course.Lessons = []models.Lesson{}
+	}
+
+	return c.JSON(fiber.Map{"data": course})
 }

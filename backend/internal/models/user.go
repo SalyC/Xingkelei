@@ -16,4 +16,6 @@ type User struct {
 	FirstName string         `json:"first_name"`
 	LastName  string         `json:"last_name"`
 	Role      string         `gorm:"default:student" json:"role"`
+	IsBlocked bool           `gorm:"default:false" json:"is_blocked"`
+	AvatarURL string         `json:"avatar_url"`
 }

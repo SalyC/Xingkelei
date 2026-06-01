@@ -1,0 +1,462 @@
+/* Общие стили */
+.body {
+  font-family: 'Inter', sans-serif;
+  background-color: #fefcf8;
+  color: #1a1e2b;
+  line-height: 1.4;
+  scroll-behavior: smooth;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Типографика */
+.h1 {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #1E2A3A 0%, #2C3E4E 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 1.5rem;
+}
+
+.h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 2rem;
+  position: relative;
+  display: inline-block;
+}
+
+.h2::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 0;
+  width: 60px;
+  height: 4px;
+  background: #E6B422;
+  border-radius: 4px;
+}
+
+.section {
+  margin: 5rem 0;
+}
+
+/* Hero-секция */
+.heroSection {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "text image"
+    "stats image";
+  align-items: end;
+  column-gap: 2rem;
+  margin-top: 3rem;
+  position: relative;
+}
+
+.heroText {
+  grid-area: text;
+}
+
+.heroTitle {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  color: #1a1e2b;
+}
+
+.heroTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heroSlogan {
+  border: 1px dashed #CBCBCB;
+  border-radius: 14px;
+  padding: 4px 12px;
+  font-size: 1rem;
+  font-weight: normal;
+  color: #000;
+  white-space: nowrap;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heroAccent {
+  color: #0077cc;
+  font-size: 5rem;
+  display: block;
+  line-height: 1.1;
+}
+
+.heroSub {
+  color: #5e6f8d;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  max-width: 550px;
+}
+
+.heroImage {
+  grid-area: image;
+  max-width: 100%;
+  height: auto;
+  align-self: stretch;
+  object-fit: contain;
+}
+
+/* Статистика */
+.statsRow {
+  grid-area: stats;
+  display: flex;
+  gap: 2rem;
+  margin-top: 1rem;
+  align-self: end;
+  flex-wrap: wrap;
+}
+
+.statImage {
+  max-width: 160px;
+  height: auto;
+}
+
+/* Серый контейнер для подписки */
+.subscriptionContainer {
+  background: #f5f5f5;
+  border-radius: 32px;
+  padding: 2rem 1rem;
+  margin: 1rem 0;
+}
+
+/* Карточка курса (прозрачная, без фона) */
+.courseCard {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  padding: 0;
+  text-align: center;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: none;
+}
+
+.courseCard:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.courseImage {
+  width: 250px;
+  height: 325px;
+  object-fit: cover;
+  border-radius: 30px;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.courseImage:hover {
+  transform: scale(1.02);
+  box-shadow: 0 15px 25px -8px rgba(0,0,0,0.15);
+}
+
+.courseCard .btnBuy {
+  margin-top: 1rem;
+  width: 250px;
+}
+
+.courseCard .courseLink {
+  margin-bottom: 0.5rem;
+}
+
+.btnBuy {
+  background: #1a2a36;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 40px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: 0.2s;
+  width: 100%;
+  margin-bottom: 12px;
+  font-family: inherit;
+}
+
+.btnBuy:hover {
+  background: #E6B422;
+  color: #1a1e2b;
+  transform: scale(0.98);
+}
+
+.courseLink {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+  display: inline-block;
+}
+
+.courseLink:hover {
+  color: #E6B422;
+  text-decoration: underline;
+}
+
+/* Форматы */
+.formatsRow {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 2rem 0 1rem;
+  justify-content: center;
+}
+
+.formatBadgeBlue {
+  background: rgba(0, 153, 236, 1);
+  padding: 0.6rem 1.2rem 0.6rem 0.7rem;
+  border-radius: 60px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  transition: all 0.2s;
+  backdrop-filter: blur(2px);
+}
+
+.formatBadgeBlack {
+  background: rgba(37, 37, 42, 1);
+  padding: 0.6rem 1.2rem 0.6rem 0.6rem;
+  border-radius: 60px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  transition: all 0.2s;
+  backdrop-filter: blur(2px);
+}
+
+.formatBadgeBlue i, .formatBadgeBlack i {
+  margin-right: 8px;
+  color: #E6B422;
+}
+
+.formatBadgeBlue:hover, .formatBadgeBlack:hover {
+  background: #E6B422;
+  color: #1e2a2f;
+  border-color: #E6B422;
+  transform: translateY(-2px);
+}
+
+.formatBadgeBlue:hover i, .formatBadgeBlack:hover i {
+  color: #1e2a2f;
+}
+
+/* Спикеры */
+.speakersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.speakerCard {
+  background: #ffffff;
+  border-radius: 32px;
+  padding: 1.8rem;
+  text-align: center;
+  transition: all 0.25s;
+  border: 1px solid #f0e9de;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.02);
+}
+
+.speakerCard:hover {
+  border-color: #E6B422;
+  box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.2rem;
+  background: #f0e9de;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.speakerName {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.speakerQuote {
+  font-size: 0.9rem;
+  color: #4a5b6e;
+  line-height: 1.45;
+  font-style: normal;
+  border-top: 1px solid #efe3cf;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* FAQ */
+.faqList {
+  margin-top: 2rem;
+  background: #ffffffd9;
+  border-radius: 32px;
+  padding: 0.5rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.03);
+}
+
+.faqItem {
+  border-bottom: 1px solid #f0e2d2;
+  transition: background 0.1s;
+}
+
+.faqQuestion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 1.5rem;
+  font-weight: 700;
+  font-size: 1.2rem;
+  cursor: pointer;
+  background: white;
+  border-radius: 24px;
+  transition: background 0.2s;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.faqQuestion:hover {
+  background: #fff9ef;
+}
+
+.faqQuestion i {
+  color: #E6B422;
+  font-size: 1.3rem;
+  transition: transform 0.2s;
+}
+
+.faqAnswer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, padding 0.2s;
+  padding: 0 1.5rem;
+  color: #3e4c5f;
+  line-height: 1.5;
+}
+
+.faqAnswerOpen {
+  max-height: 180px;
+  padding: 0 1.5rem 1.2rem 1.5rem;
+}
+
+.faqQuestionOpen i {
+  transform: rotate(180deg);
+}
+
+/* Карусель */
+.carouselContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.carouselTrack {
+  display: flex;
+  gap: 2rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 0 1rem;
+  flex: 1;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.carouselTrack::-webkit-scrollbar {
+  display: none;
+}
+
+.arrowButton {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #2c3e4e;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin: 0 0.5rem;
+  z-index: 2;
+}
+
+.arrowButton:hover {
+  background: #E6B422;
+  color: white;
+  border-color: #E6B422;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .h1 { font-size: 2.8rem; }
+  .h2 { font-size: 1.8rem; }
+  .container { padding: 0 20px; }
+  .statImage { max-width: 120px; }
+  .speakerName { font-size: 1.3rem; }
+  .heroTitle { font-size: 3rem; }
+  .heroAccent { font-size: 3.5rem; }
+  .heroSlogan { font-size: 0.9rem; padding: 4px 8px; }
+  .heroSection {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "image"
+      "text"
+      "stats";
+    row-gap: 1rem;
+  }
+  .heroImage {
+    max-width: 250px;
+    justify-self: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .statsRow { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .courseCard { min-width: 200px; }
+}

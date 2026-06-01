@@ -13,5 +13,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.Lesson{},
 		&models.UserCourse{},
 		&models.Certificate{},
+		&models.LessonCompletion{},
 	)
 }

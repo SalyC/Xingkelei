@@ -1,10 +1,10 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import api from '@/lib/api'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import api from "@/lib/api"
+import BuyButton from "@/components/BuyButton"
+import Footer from "@/components/layout/Footer"
 
 interface Course {
   id: number
@@ -21,10 +21,10 @@ const OtherCoursesPage = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const res = await api.get('/courses')
+        const res = await api.get("/courses")
         setCourses(res.data.data)
       } catch (err) {
-        console.error('Ошибка фетча каталога:', err)
+        console.error("Ошибка загрузки каталога:", err)
       } finally {
         setLoading(false)
       }
@@ -34,53 +34,50 @@ const OtherCoursesPage = () => {
 
   if (loading) {
     return (
-      <div className='flex items-center justify-center h-full'>
-        <p className='text-muted-foreground'>Загрузка каталога...</p>
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Загрузка каталога...</p>
       </div>
     )
   }
 
   return (
-    <div className='space-y-6'>
+    <div className="space-y-6">
       <div>
-        <h1 className='text-3xl font-bold'>Другие курсы</h1>
-        <p className='text-muted-foreground mt-1'>
+        <h1 className="text-3xl font-bold">Другие курсы</h1>
+        <p className="text-muted-foreground mt-1">
           Выберите курс, чтобы получить новые знания
         </p>
       </div>
 
       {courses.length === 0 ? (
-        <div className='bg-white rounded-lg p-12 text-center'>
-          <p className='text-lg text-muted-foreground'>Курсы пока не добавлены</p>
+        <div className="bg-white rounded-lg p-12 text-center">
+          <p className="text-lg text-muted-foreground">
+            Все доступные курсы уже у вас!
+          </p>
         </div>
       ) : (
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {courses.map((course) => (
-            <Card key={course.id} className='flex flex-col h-full'>
-              {course.image_url && (
-                <div className='aspect-video w-full overflow-hidden rounded-t-lg'>
-                  <img
-                    src={course.image_url}
-                    alt={course.title}
-                    className='w-full h-full object-cover'
-                  />
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle>{course.title}</CardTitle>
-                <CardDescription>{course.description}</CardDescription>
-              </CardHeader>
-              <CardContent className='flex-1'>
-                <p className='text-2xl font-bold text-primary'>
-                  {course.price === 0 ? 'Бесплатно' : `${course.price} ₽`}
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/dashboard/courses/${course.id}`} className='w-full'>
-                  <Button className='w-full'>Подробнее</Button>
-                </Link>
-              </CardFooter>
-            </Card>
+            <div key={course.id} className="flex flex-col items-center">
+              <img
+                src={course.image_url || "/placeholder-course.jpg"}
+                alt={course.title}
+                className="w-[250px] h-[325px] object-cover rounded-[30px] hover:scale-105 transition-transform duration-200 shadow-md hover:shadow-lg"
+              />
+              <p className="mt-2 font-semibold text-lg text-center">
+                {course.title}
+              </p>
+
+              <BuyButton courseId={course.id} className="mt-3 w-[250px] bg-[#1a2a36] text-white py-2 rounded-full font-semibold hover:bg-[#E6B422] hover:text-black transition-colors" />
+
+              <Link
+                href={`/courses/${course.id}`}
+                className="mt-2 text-sm text-muted-foreground hover:text-[#E6B422] underline transition-colors"
+                prefetch={false}
+              >
+                Подробнее о курсе →
+              </Link>
+            </div>
           ))}
         </div>
       )}

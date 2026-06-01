@@ -43,12 +43,14 @@ const Header = () => {
   return (
     <header className="border-b bg-white px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <Avatar>
+        <Avatar className="bg-[#0099EC] text-white">
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
         <div>
           <h2 className="font-semibold">{user.first_name} {user.last_name}</h2>
-          <p className="text-sm text-muted-foreground">{user.role === "student" ? "Студент курса" : user.role}</p>
+          <p className="text-sm text-muted-foreground">
+            {user.role === "student" ? "Студент курса" : user.role}
+          </p>
         </div>
       </div>
       <Button variant="ghost" onClick={handleLogout}>

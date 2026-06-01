@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,6 +25,8 @@ type AuthHandler struct {
 func NewAuthHandler(db *gorm.DB, redis *redis.Client) *AuthHandler {
 	return &AuthHandler{db: db, redis: redis}
 }
+
+// ── Регистрация ─────────────────────────────────────────
 
 type RegisterRequest struct {
 	Email     string `json:"email" validate:"required,email"`
@@ -68,6 +73,8 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// ── Логин ───────────────────────────────────────────────
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -122,7 +129,31 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateProfile обновляет имя, фамилию, email
+// ── Получение своего профиля ─────────────────────────────
+
+func (h *AuthHandler) Me(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
+	var user models.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		log.Printf("Me: user not found: id=%d", userID)
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	return c.JSON(fiber.Map{
+		"data": fiber.Map{
+			"id":         user.ID,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       user.Role,
+			"avatar_url": user.AvatarURL,
+		},
+	})
+}
+
+// ── Обновление профиля ───────────────────────────────────
+
 type UpdateProfileRequest struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
@@ -165,11 +196,13 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
 			"role":       user.Role,
+			"avatar_url": user.AvatarURL,
 		},
 	})
 }
 
-// ChangePassword изменяет пароль
+// ── Смена пароля ─────────────────────────────────────────
+
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
@@ -205,23 +238,57 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Password changed successfully"})
 }
 
-// Me возвращает информацию о текущем пользователе
-func (h *AuthHandler) Me(c *fiber.Ctx) error {
+// ── Загрузка аватара ─────────────────────────────────────
+
+func (h *AuthHandler) UploadAvatar(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "No file uploaded"})
+	}
+
+	if file.Size > 5*1024*1024 {
+		return c.Status(400).JSON(fiber.Map{"error": "File too large (max 5MB)"})
+	}
+
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("avatar_%d_%d%s", userID, time.Now().Unix(), ext)
+
+	// Сохраняем в uploads/avatars/ (папка создаётся при старте сервера)
+	savePath := filepath.Join("uploads", "avatars", filename)
+
+	src, err := file.Open()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to open file"})
+	}
+	defer src.Close()
+
+	dst, err := os.Create(savePath)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create file"})
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to save file"})
+	}
+
+	// Формируем полный URL (бэкенд на 8080)
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	avatarURL := fmt.Sprintf("%s/avatars/%s", baseURL, filename)
 
 	var user models.User
 	if err := h.db.First(&user, userID).Error; err != nil {
-		log.Printf("Me: user not found: id=%d", userID)
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
+	user.AvatarURL = avatarURL
+	h.db.Save(&user)
 
 	return c.JSON(fiber.Map{
-		"data": fiber.Map{
-			"id":         user.ID,
-			"email":      user.Email,
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-			"role":       user.Role,
-		},
+		"avatar_url": avatarURL,
 	})
 }
