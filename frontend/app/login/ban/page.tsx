@@ -3,6 +3,8 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
+export const dynamic = "force-dynamic"
+
 const BanPage = () => {
   const searchParams = useSearchParams()
   const reason = searchParams.get("reason") || "Нарушение правил платформы"
