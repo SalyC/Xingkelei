@@ -107,7 +107,7 @@ func main() {
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://xingkelei.vercel.app/",
+		AllowOrigins:     "https://xingkeleiclub.vercel.app/",
 		AllowCredentials: true,
 	}))
 
