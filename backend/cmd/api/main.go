@@ -24,7 +24,7 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
-	// Временная папка для аватаров (разрешена на Render)
+	// Временная папка для аватаров (на Render разрешена)
 	avatarDir := filepath.Join("/tmp", "uploads", "avatars")
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
 		log.Fatal("Failed to create avatar directory:", err)
@@ -51,7 +51,7 @@ func main() {
 	}
 	log.Println("Database migration completed")
 
-	// Redis временно отключён, т.к. его нет на Render
+	// Redis временно отключён
 	// redisClient, err := redis.NewClient()
 	// if err != nil {
 	// 	log.Fatal("Failed to connect to Redis:", err)
@@ -59,6 +59,16 @@ func main() {
 	// log.Println("Connected to Redis")
 
 	seedDatabase(db)
+
+	adminEmail := "GM_on_the_rakbot@gmail.com"
+	var adminUser models.User
+	if err := db.Where("email = ?", adminEmail).First(&adminUser).Error; err == nil {
+		if adminUser.Role != "admin" {
+			adminUser.Role = "admin"
+			db.Save(&adminUser)
+			log.Printf("User %s has been promoted to admin\n", adminEmail)
+		}
+	}
 
 	app := fiber.New()
 	app.Use(logger.New())
@@ -69,7 +79,7 @@ func main() {
 
 	app.Static("/avatars", avatarDir)
 
-	authHandler := handlers.NewAuthHandler(db, nil) // передаём nil вместо Redis
+	authHandler := handlers.NewAuthHandler(db, nil) // nil вместо Redis
 	courseHandler := handlers.NewCourseHandler(db)
 	lessonHandler := handlers.NewLessonHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
@@ -112,7 +122,6 @@ func main() {
 	protected.Delete("/admin/users/:id", middleware.AdminRequired(db), adminHandler.DeleteUser)
 	protected.Post("/admin/users/:id/ban", middleware.AdminRequired(db), adminHandler.BanUser)
 	protected.Post("/admin/users/:id/unban", middleware.AdminRequired(db), adminHandler.UnbanUser)
-	protected.Post("/admin/courses/:courseId/lessons", middleware.AdminRequired(db), adminHandler.CreateLesson)
 
 	// Админка (контент)
 	protected.Get("/admin/courses", middleware.AdminRequired(db), adminHandler.GetAllCoursesForAdmin)
