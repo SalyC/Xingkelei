@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import axios from "axios"
+import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import BuyButton from "@/components/BuyButton"
 
@@ -40,22 +40,17 @@ const PublicCoursePage = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const controller = new AbortController()
     const fetchCourse = async () => {
       try {
-        const res = await axios.get(`http://localhost:8080/api/public/courses/${params.id}`, {
-          signal: controller.signal,
-        })
+        const res = await api.get(`/public/courses/${params.id}`)
         setCourse(res.data.data)
       } catch (err) {
-        if (axios.isCancel(err)) return
         console.error("Failed to load course", err)
       } finally {
         setLoading(false)
       }
     }
     fetchCourse()
-    return () => controller.abort()
   }, [params.id])
 
   if (loading) return <div className="p-6 text-center">Загрузка...</div>
@@ -84,7 +79,7 @@ const PublicCoursePage = () => {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="rounded-xl shadow-md"
-              ></iframe>
+              />
             </div>
           ) : demoLesson.video_url ? (
             <video controls className="w-full rounded-xl shadow-md" style={{ maxHeight: "500px" }}>
