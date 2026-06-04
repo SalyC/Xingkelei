@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -17,6 +18,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	// "backend/internal/redis" // пока отключён
 )
 
 func main() {
@@ -60,15 +62,39 @@ func main() {
 
 	seedDatabase(db)
 
+	// ========== Создание администратора по умолчанию ==========
 	adminEmail := "GM_on_the_rakbot@gmail.com"
+	adminPass := "test2026"
+	adminFirst := "Alexander"
+	adminLast := "Sadist"
+
 	var adminUser models.User
-	if err := db.Where("email = ?", adminEmail).First(&adminUser).Error; err == nil {
+	result := db.Where("email = ?", adminEmail).First(&adminUser)
+	if result.Error != nil {
+		// Пользователь не найден — создаём
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("Failed to hash admin password: %v", err)
+		} else {
+			adminUser = models.User{
+				Email:     adminEmail,
+				Password:  string(hashedPassword),
+				FirstName: adminFirst,
+				LastName:  adminLast,
+				Role:      "admin",
+			}
+			db.Create(&adminUser)
+			log.Printf("Admin user created: %s", adminEmail)
+		}
+	} else {
+		// Пользователь существует — убедимся, что он админ
 		if adminUser.Role != "admin" {
 			adminUser.Role = "admin"
 			db.Save(&adminUser)
-			log.Printf("User %s has been promoted to admin\n", adminEmail)
+			log.Printf("User %s promoted to admin", adminEmail)
 		}
 	}
+	// =========================================================
 
 	app := fiber.New()
 	app.Use(logger.New())
