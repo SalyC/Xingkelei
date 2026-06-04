@@ -17,7 +17,6 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/models"
-	"backend/internal/redis"
 )
 
 func main() {
@@ -25,8 +24,8 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
-	// Создаём папку для аватаров
-	avatarDir := filepath.Join("uploads", "avatars")
+	// Временная папка для аватаров (разрешена на Render)
+	avatarDir := filepath.Join("/tmp", "uploads", "avatars")
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
 		log.Fatal("Failed to create avatar directory:", err)
 	}
@@ -52,25 +51,25 @@ func main() {
 	}
 	log.Println("Database migration completed")
 
-	redisClient, err := redis.NewClient()
-	if err != nil {
-		log.Fatal("Failed to connect to Redis:", err)
-	}
-	log.Println("Connected to Redis")
+	// Redis временно отключён, т.к. его нет на Render
+	// redisClient, err := redis.NewClient()
+	// if err != nil {
+	// 	log.Fatal("Failed to connect to Redis:", err)
+	// }
+	// log.Println("Connected to Redis")
 
 	seedDatabase(db)
 
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000",
+		AllowOrigins:     "http://localhost:3000", // замените на домен Vercel после деплоя фронтенда
 		AllowCredentials: true,
 	}))
 
-	// Раздача аватаров
 	app.Static("/avatars", avatarDir)
 
-	authHandler := handlers.NewAuthHandler(db, redisClient)
+	authHandler := handlers.NewAuthHandler(db, nil) // передаём nil вместо Redis
 	courseHandler := handlers.NewCourseHandler(db)
 	lessonHandler := handlers.NewLessonHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
