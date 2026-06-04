@@ -49,17 +49,17 @@ const logoutSvg = `<svg width="30" height="30" viewBox="0 0 30 30" fill="none" x
 </svg>`
 
 // ===== Компоненты иконок (применяем фильтр для перекраски) =====
-const Icon = ({ svgString, active }: { svgString: string; active?: boolean }) => (
-  <span
-    dangerouslySetInnerHTML={{ __html: svgString }}
-    style={{
-      display: "inline-flex",
-      filter: active
-        ? "invert(39%) sepia(83%) saturate(3587%) hue-rotate(179deg) brightness(96%) contrast(101%)"
-        : "none",
-    }}
-  />
-)
+  const Icon = ({ svgString, active }: { svgString: string; active?: boolean }) => (
+    <span
+      dangerouslySetInnerHTML={{ __html: svgString }}
+      style={{
+        display: "inline-flex",
+        filter: active
+          ? "invert(39%) sepia(83%) saturate(3587%) hue-rotate(179deg) brightness(96%) contrast(101%)"
+          : "none",
+      }}
+    />
+  )
 
 const MyCoursesIcon = ({ active }: { active: boolean }) => <Icon svgString={myCoursesSvg} active={active} />
 const OtherCoursesIcon = ({ active }: { active: boolean }) => <Icon svgString={otherCoursesSvg} active={active} />

@@ -100,6 +100,16 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
+	// Проверка блокировки
+	if user.IsBlocked {
+		return c.Status(403).JSON(fiber.Map{
+			"error":     "Account is blocked",
+			"banned":    true,
+			"reason":    user.BanReason,
+			"banned_at": user.BannedAt,
+		})
+	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		log.Printf("Login: password mismatch for %s", req.Email)
 		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
@@ -173,7 +183,6 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	// Проверяем, не занят ли новый email другим пользователем
 	if req.Email != user.Email {
 		var existing models.User
 		if err := h.db.Where("email = ? AND id != ?", req.Email, userID).First(&existing).Error; err == nil {
@@ -255,7 +264,6 @@ func (h *AuthHandler) UploadAvatar(c *fiber.Ctx) error {
 	ext := filepath.Ext(file.Filename)
 	filename := fmt.Sprintf("avatar_%d_%d%s", userID, time.Now().Unix(), ext)
 
-	// Сохраняем в uploads/avatars/ (папка создаётся при старте сервера)
 	savePath := filepath.Join("uploads", "avatars", filename)
 
 	src, err := file.Open()
@@ -274,7 +282,6 @@ func (h *AuthHandler) UploadAvatar(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to save file"})
 	}
 
-	// Формируем полный URL (бэкенд на 8080)
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
 		baseURL = "http://localhost:8080"

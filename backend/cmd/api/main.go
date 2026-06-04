@@ -25,7 +25,7 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
-	// Создаём папку для аватаров, если её нет
+	// Создаём папку для аватаров
 	avatarDir := filepath.Join("uploads", "avatars")
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
 		log.Fatal("Failed to create avatar directory:", err)
@@ -67,7 +67,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Раздача статических файлов из папки uploads/avatars по пути /avatars
+	// Раздача аватаров
 	app.Static("/avatars", avatarDir)
 
 	authHandler := handlers.NewAuthHandler(db, redisClient)
@@ -84,17 +84,14 @@ func main() {
 
 	// Защищённые маршруты
 	protected := api.Group("/", middleware.AuthRequired(db))
+
+	// Профиль
 	protected.Get("/auth/me", authHandler.Me)
 	protected.Put("/auth/profile", authHandler.UpdateProfile)
 	protected.Post("/auth/change-password", authHandler.ChangePassword)
 	protected.Post("/auth/avatar", authHandler.UploadAvatar)
 
-	protected.Post("/courses/:courseId/lessons/:lessonId/complete", lessonHandler.CompleteLesson)
-	protected.Get("/courses/:id/progress", lessonHandler.GetCourseProgress)
-	protected.Post("/courses/:id/complete", lessonHandler.CompleteCourse)
-
-	protected.Get("/certificates/my", lessonHandler.GetMyCertificates)
-
+	// Курсы
 	protected.Post("/courses/activate", courseHandler.ActivateByCode)
 	protected.Get("/courses/my", courseHandler.GetMyCourses)
 	protected.Get("/courses", courseHandler.GetAllCourses)
@@ -102,9 +99,26 @@ func main() {
 	protected.Get("/courses/:id/lessons/:lessonId", courseHandler.GetLesson)
 	protected.Post("/courses/:id/activate", courseHandler.ActivateWithCode)
 
+	// Прогресс и сертификаты
+	protected.Post("/courses/:courseId/lessons/:lessonId/complete", lessonHandler.CompleteLesson)
+	protected.Get("/courses/:id/progress", lessonHandler.GetCourseProgress)
+	protected.Post("/courses/:id/complete", lessonHandler.CompleteCourse)
+	protected.Get("/certificates/my", lessonHandler.GetMyCertificates)
+
+	// Админка (пользователи)
 	protected.Get("/admin/users", middleware.AdminRequired(db), adminHandler.GetUsers)
 	protected.Post("/admin/users/:id/toggle-block", middleware.AdminRequired(db), adminHandler.ToggleBlock)
 	protected.Get("/admin/users/:id/courses", middleware.AdminRequired(db), adminHandler.GetUserCourses)
+	protected.Put("/admin/users/:id/role", middleware.AdminRequired(db), adminHandler.UpdateUserRole)
+	protected.Delete("/admin/users/:id", middleware.AdminRequired(db), adminHandler.DeleteUser)
+	protected.Post("/admin/users/:id/ban", middleware.AdminRequired(db), adminHandler.BanUser)
+	protected.Post("/admin/users/:id/unban", middleware.AdminRequired(db), adminHandler.UnbanUser)
+	protected.Post("/admin/courses/:courseId/lessons", middleware.AdminRequired(db), adminHandler.CreateLesson)
+
+	// Админка (контент)
+	protected.Get("/admin/courses", middleware.AdminRequired(db), adminHandler.GetAllCoursesForAdmin)
+	protected.Get("/admin/courses/:id/lessons", middleware.AdminRequired(db), adminHandler.GetLessonsForAdmin)
+	protected.Put("/admin/lessons/:id", middleware.AdminRequired(db), adminHandler.UpdateLessonAdmin)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
@@ -155,25 +169,24 @@ func seedDatabase(db *gorm.DB) {
 		},
 	}
 
-	// Уникальные видео для каждого урока
 	videos := map[string][]string{
 		"Управление финансами": {
-			"https://www.youtube.com/watch?v=F_9PnhbCcUM", // урок 1
-			"https://www.youtube.com/watch?v=Wg3hY6BQj4A", // урок 2
-			"https://www.youtube.com/watch?v=9GrZYLQqDqA", // урок 3
+			"https://www.youtube.com/watch?v=HO5bXcK8HX4",
+			"https://www.youtube.com/watch?v=Wg3hY6BQj4A",
+			"https://www.youtube.com/watch?v=9GrZYLQqDqA",
 		},
 		"Цена времени": {
-			"https://www.youtube.com/watch?v=F_9PnhbCcUM",
+			"https://www.youtube.com/watch?v=4Z9Mf2Gq4hY",
 			"https://www.youtube.com/watch?v=XfGm8Hc9QyY",
 			"https://www.youtube.com/watch?v=3JY8hJ9xGcE",
 		},
 		"Психология общения": {
-			"https://www.youtube.com/watch?v=F_9PnhbCcUM",
+			"https://www.youtube.com/watch?v=kJ3GXFkLqF8",
 			"https://www.youtube.com/watch?v=Hs5gF1zJ4XM",
 			"https://www.youtube.com/watch?v=V9fL7a5nDzM",
 		},
 		"Искусство коммуникации": {
-			"https://www.youtube.com/watch?v=F_9PnhbCcUM",
+			"https://www.youtube.com/watch?v=Zm3JqG8L5Vw",
 			"https://www.youtube.com/watch?v=Nb4pG5mA8X4",
 			"https://www.youtube.com/watch?v=Kq4eH9jZ7VY",
 		},
@@ -204,7 +217,7 @@ func seedDatabase(db *gorm.DB) {
 		}
 	}
 
-	// Привязка первого пользователя к первому курсу (если пользователи уже есть)
+	// Привязка первого пользователя к первому курсу (если есть)
 	var user models.User
 	if err := db.First(&user).Error; err == nil {
 		var firstCourse models.Course

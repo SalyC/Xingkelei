@@ -5,7 +5,6 @@ import Link from "next/link"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import Footer from "@/components/layout/Footer"
 
 interface Certificate {
   id: number
@@ -23,9 +22,10 @@ const CertificatesPage = () => {
     const fetchCertificates = async () => {
       try {
         const res = await api.get("/certificates/my")
-        setCertificates(res.data.data)
+        setCertificates(res.data.data || [])
       } catch (err) {
         console.error("Failed to fetch certificates:", err)
+        setCertificates([])
       } finally {
         setLoading(false)
       }

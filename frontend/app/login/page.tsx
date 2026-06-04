@@ -2,12 +2,14 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 const LoginPage = () => {
+  const router = useRouter()
   const [form, setForm] = useState({ email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -27,8 +29,30 @@ const LoginPage = () => {
       localStorage.setItem("access_token", token)
       window.location.href = "/dashboard"
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || "Неверный email или пароль")
+      const axiosError = err as {
+        response?: {
+          data?: {
+            error?: string
+            banned?: boolean
+            reason?: string
+            banned_at?: string
+          }
+        }
+      }
+      if (axiosError.response?.data?.banned) {
+        const reason = axiosError.response.data.reason || "Нарушение правил"
+        const bannedAt = axiosError.response.data.banned_at || ""
+        console.log("Ban info from server:", { reason, bannedAt })
+
+        const params = new URLSearchParams()
+        params.append("reason", reason)
+        if (bannedAt) {
+          params.append("date", bannedAt)
+        }
+        router.push(`/login/ban?${params.toString()}`)
+        return
+      }
+      setError(axiosError.response?.data?.error || "Неверный email или пароль")
       setLoading(false)
     }
   }
@@ -44,27 +68,11 @@ const LoginPage = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Почта</label>
-              <Input
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
+              <Input name="email" type="email" value={form.email} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Пароль</label>
-              <Input
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
+              <Input name="password" type="password" value={form.password} onChange={handleChange} required disabled={loading} />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
           </CardContent>

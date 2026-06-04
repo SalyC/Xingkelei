@@ -46,14 +46,25 @@ export default function HomePage() {
             <Image src="/4courses.png" alt="4 курса" width={160} height={80} className={styles.statImage} />
             <Image src="/20materials.png" alt="20+ материалов" width={180} height={80} className={styles.statImage} />
           </div>
-          <Image
-            src="/mainphoto.png"
-            alt="Клуб Синкэлэй"
-            width={400}
-            height={400}
-            className={styles.heroImage}
-            priority
-          />
+                    {/* Главное фото + кнопки Вход/Регистрация */}
+          <div className={styles.heroImageContainer}>
+            <Image
+              src="/mainphoto.png"
+              alt="Клуб Синкэлэй"
+              width={400}
+              height={400}
+              className={styles.heroImage}
+              priority
+            />
+            <div className={styles.heroButtons}>
+              <Link href="/login" className={styles.loginButton}>
+                Вход
+              </Link>
+              <Link href="/register" className={styles.registerButton}>
+                Регистрация
+              </Link>
+            </div>
+          </div>
         </section>
 
         <section className={styles.section}>
