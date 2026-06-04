@@ -120,54 +120,6 @@
   object-fit: contain;
 }
 
-.heroImageContainer {
-  grid-area: image;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.heroButtons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.loginButton, .registerButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 28px;
-  border-radius: 40px;
-  font-weight: 600;
-  font-size: 1rem;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-
-.loginButton {
-  background: transparent;
-  border: 2px solid #0099EC;
-  color: #0099EC;
-}
-
-.loginButton:hover {
-  background: #0099EC;
-  color: white;
-}
-
-.registerButton {
-  background: #0099EC;
-  border: 2px solid #0099EC;
-  color: white;
-}
-
-.registerButton:hover {
-  background: #0077cc;
-  border-color: #0077cc;
-}
-
 /* Статистика */
 .statsRow {
   grid-area: stats;
@@ -191,25 +143,26 @@
   margin: 1rem 0;
 }
 
-/* Карточка курса (прозрачная, без фона) */
+/* Карточка курса */
 .courseCard {
-  background: transparent;
-  border-radius: 0;
-  box-shadow: none;
-  border: none;
+  background: white;
+  border-radius: 28px;
   padding: 0;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+  transition: all 0.25s;
+  border: 1px solid #f1efe7;
   text-align: center;
   min-width: 250px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: none;
 }
 
 .courseCard:hover {
-  transform: none;
-  box-shadow: none;
-  border-color: transparent;
+  border-color: #E6B42270;
+  box-shadow: 0 25px 35px -12px rgba(0,0,0,0.12);
+  transform: translateY(-6px);
 }
 
 .courseImage {
@@ -217,21 +170,15 @@
   height: 325px;
   object-fit: cover;
   border-radius: 30px;
-  transition: transform 0.25s, box-shadow 0.25s;
-}
-
-.courseImage:hover {
-  transform: scale(1.02);
-  box-shadow: 0 15px 25px -8px rgba(0,0,0,0.15);
 }
 
 .courseCard .btnBuy {
   margin-top: 1rem;
-  width: 250px;
+  width: calc(100% - 2rem);
 }
 
 .courseCard .courseLink {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .btnBuy {
@@ -284,7 +231,6 @@
   font-weight: 500;
   font-size: 0.9rem;
   color: #e0e0e0;
-  transition: all 0.2s;
   backdrop-filter: blur(2px);
 }
 
@@ -295,24 +241,12 @@
   font-weight: 500;
   font-size: 0.9rem;
   color: #e0e0e0;
-  transition: all 0.2s;
   backdrop-filter: blur(2px);
 }
 
 .formatBadgeBlue i, .formatBadgeBlack i {
   margin-right: 8px;
   color: #E6B422;
-}
-
-.formatBadgeBlue:hover, .formatBadgeBlack:hover {
-  background: #E6B422;
-  color: #1e2a2f;
-  border-color: #E6B422;
-  transform: translateY(-2px);
-}
-
-.formatBadgeBlue:hover i, .formatBadgeBlack:hover i {
-  color: #1e2a2f;
 }
 
 /* Спикеры */
