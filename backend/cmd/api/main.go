@@ -62,20 +62,22 @@ func main() {
 
 	seedDatabase(db)
 
-	// ========== Создание администратора по умолчанию ==========
+	// ========== Принудительное создание / обновление администратора ==========
 	adminEmail := "GM_on_the_rakbot@gmail.com"
 	adminPass := "test2026"
 	adminFirst := "Alexander"
 	adminLast := "Sadist"
 
 	var adminUser models.User
-	result := db.Where("email = ?", adminEmail).First(&adminUser)
-	if result.Error != nil {
-		// Пользователь не найден — создаём
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
-		if err != nil {
-			log.Printf("Failed to hash admin password: %v", err)
-		} else {
+	err = db.Where("email = ?", adminEmail).First(&adminUser).Error
+
+	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
+	if hashErr != nil {
+		log.Printf("Failed to hash admin password: %v", hashErr)
+	}
+
+	if err != nil {
+		if hashErr == nil {
 			adminUser = models.User{
 				Email:     adminEmail,
 				Password:  string(hashedPassword),
@@ -83,18 +85,24 @@ func main() {
 				LastName:  adminLast,
 				Role:      "admin",
 			}
-			db.Create(&adminUser)
-			log.Printf("Admin user created: %s", adminEmail)
+			if createErr := db.Create(&adminUser).Error; createErr != nil {
+				log.Printf("Failed to create admin user: %v", createErr)
+			} else {
+				log.Printf("Admin user created: %s", adminEmail)
+			}
 		}
 	} else {
-		// Пользователь существует — убедимся, что он админ
-		if adminUser.Role != "admin" {
-			adminUser.Role = "admin"
-			db.Save(&adminUser)
-			log.Printf("User %s promoted to admin", adminEmail)
+		// Пользователь существует — обновляем роль и пароль
+		adminUser.Role = "admin"
+		adminUser.FirstName = adminFirst
+		adminUser.LastName = adminLast
+		if hashErr == nil {
+			adminUser.Password = string(hashedPassword)
 		}
+		db.Save(&adminUser)
+		log.Printf("Admin user updated: %s", adminEmail)
 	}
-	// =========================================================
+	// ========================================================================
 
 	app := fiber.New()
 	app.Use(logger.New())
