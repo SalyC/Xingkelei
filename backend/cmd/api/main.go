@@ -63,7 +63,7 @@ func main() {
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000", // замените на домен Vercel после деплоя фронтенда
+		AllowOrigins:     "https://xingkelei.vercel.app/",
 		AllowCredentials: true,
 	}))
 
