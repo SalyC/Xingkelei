@@ -1,23 +1,42 @@
 package email
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
-
-	"github.com/resend/resend-go/v2"
 )
 
+type BrevoRequest struct {
+	Sender      BrevoSender      `json:"sender"`
+	To          []BrevoRecipient `json:"to"`
+	Subject     string           `json:"subject"`
+	HTMLContent string           `json:"htmlContent"`
+}
+
+type BrevoSender struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type BrevoRecipient struct {
+	Email string `json:"email"`
+}
+
 func SendVerificationCode(to, code string) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
+	apiKey := os.Getenv("BREVO_API_KEY")
 	if apiKey == "" {
-		return fmt.Errorf("RESEND_API_KEY is not set")
+		return fmt.Errorf("BREVO_API_KEY is not set")
 	}
 
-	client := resend.NewClient(apiKey)
-
-	from := os.Getenv("RESEND_FROM")
-	if from == "" {
-		from = "onboarding@resend.dev"
+	fromEmail := os.Getenv("BREVO_FROM_EMAIL")
+	fromName := os.Getenv("BREVO_FROM_NAME")
+	if fromEmail == "" {
+		fromEmail = "GM_on_the_rakbot@gmail.com" // fallback
+	}
+	if fromName == "" {
+		fromName = "Клуб Синкэлэй"
 	}
 
 	html := fmt.Sprintf(
@@ -25,16 +44,26 @@ func SendVerificationCode(to, code string) error {
 		code,
 	)
 
-	params := &resend.SendEmailRequest{
-		From:    from,
-		To:      []string{to},
-		Subject: "Код подтверждения Клуб Синкэлэй",
-		Html:    html,
+	request := BrevoRequest{
+		Sender:      BrevoSender{Name: fromName, Email: fromEmail},
+		To:          []BrevoRecipient{{Email: to}},
+		Subject:     "Код подтверждения Клуб Синкэлэй",
+		HTMLContent: html,
 	}
 
-	_, err := client.Emails.Send(params)
+	body, _ := json.Marshal(request)
+	req, _ := http.NewRequest("POST", "https://api.brevo.com/v3/smtp/email", bytes.NewBuffer(body))
+	req.Header.Set("api-key", apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Resend send error: %w", err)
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return fmt.Errorf("brevo returned status %d", resp.StatusCode)
 	}
 	return nil
 }

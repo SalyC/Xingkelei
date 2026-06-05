@@ -62,26 +62,21 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
-	// Фоновая отправка кода
-	go func() {
-		if os.Getenv("RESEND_API_KEY") != "" {
-			if err := email.SendVerificationCode(user.Email, code); err != nil {
-				log.Printf("Failed to send verification email: %v", err)
-			}
-		} else {
-			log.Printf("Verification code for %s: %s", user.Email, code)
+	// Отправка через Brevo (если ключ задан)
+	if os.Getenv("BREVO_API_KEY") != "" {
+		if err := email.SendVerificationCode(user.Email, code); err != nil {
+			log.Printf("Failed to send verification email: %v", err)
 		}
-	}()
+	}
 
-	// Если ни Resend, ни SMTP не настроены – возвращаем код клиенту
-	if os.Getenv("RESEND_API_KEY") == "" && os.Getenv("SMTP_EMAIL") == "" {
+	// Возвращаем код клиенту только в dev-режиме (когда ключ не задан)
+	if os.Getenv("BREVO_API_KEY") == "" {
 		return c.Status(201).JSON(fiber.Map{
 			"message":           "Verification code generated",
 			"email":             user.Email,
 			"verification_code": code,
 		})
 	}
-
 	return c.Status(201).JSON(fiber.Map{
 		"message": "Verification code sent to your email",
 		"email":   user.Email,
@@ -144,23 +139,18 @@ func (h *AuthHandler) ResendVerificationCode(c *fiber.Ctx) error {
 	user.VerificationCode = code
 	h.db.Save(&user)
 
-	go func() {
-		if os.Getenv("RESEND_API_KEY") != "" {
-			if err := email.SendVerificationCode(user.Email, code); err != nil {
-				log.Printf("Failed to resend verification email: %v", err)
-			}
-		} else {
-			log.Printf("Resent verification code for %s: %s", user.Email, code)
+	if os.Getenv("BREVO_API_KEY") != "" {
+		if err := email.SendVerificationCode(user.Email, code); err != nil {
+			log.Printf("Failed to resend verification email: %v", err)
 		}
-	}()
+	}
 
-	if os.Getenv("RESEND_API_KEY") == "" && os.Getenv("SMTP_EMAIL") == "" {
+	if os.Getenv("BREVO_API_KEY") == "" {
 		return c.JSON(fiber.Map{
-			"message":           "New verification code generated",
+			"message":           "New code generated",
 			"verification_code": code,
 		})
 	}
-
 	return c.JSON(fiber.Map{"message": "New code sent to your email"})
 }
 
@@ -224,13 +214,11 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 }
 
 // ── Получение своего профиля ─────────────────────────────
-
 func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 
 	var user models.User
 	if err := h.db.First(&user, userID).Error; err != nil {
-		log.Printf("Me: user not found: id=%d", userID)
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -247,7 +235,6 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 }
 
 // ── Обновление профиля ───────────────────────────────────
-
 type UpdateProfileRequest struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
@@ -295,7 +282,6 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 }
 
 // ── Смена пароля ─────────────────────────────────────────
-
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
@@ -332,7 +318,6 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 }
 
 // ── Загрузка аватара ─────────────────────────────────────
-
 func (h *AuthHandler) UploadAvatar(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 
