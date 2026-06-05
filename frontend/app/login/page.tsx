@@ -36,14 +36,20 @@ const LoginPage = () => {
             banned?: boolean
             reason?: string
             banned_at?: string
+            verified?: boolean
           }
         }
       }
+
+      if (axiosError.response?.data?.verified === false) {
+        setError("Email не подтверждён. Зарегистрируйтесь заново или запросите новый код.")
+        setLoading(false)
+        return
+      }
+
       if (axiosError.response?.data?.banned) {
         const reason = axiosError.response.data.reason || "Нарушение правил"
         const bannedAt = axiosError.response.data.banned_at || ""
-        console.log("Ban info from server:", { reason, bannedAt })
-
         const params = new URLSearchParams()
         params.append("reason", reason)
         if (bannedAt) {
@@ -52,6 +58,7 @@ const LoginPage = () => {
         router.push(`/login/ban?${params.toString()}`)
         return
       }
+
       setError(axiosError.response?.data?.error || "Неверный email или пароль")
       setLoading(false)
     }

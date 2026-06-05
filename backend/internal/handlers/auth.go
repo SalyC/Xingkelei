@@ -62,20 +62,29 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
-	// Попытка отправить письмо (в фоне)
+	// Фоновая отправка кода
 	go func() {
-		if os.Getenv("SMTP_EMAIL") != "" {
+		if os.Getenv("RESEND_API_KEY") != "" {
 			if err := email.SendVerificationCode(user.Email, code); err != nil {
 				log.Printf("Failed to send verification email: %v", err)
 			}
+		} else {
+			log.Printf("Verification code for %s: %s", user.Email, code)
 		}
 	}()
 
-	// Всегда возвращаем код клиенту (только для отладки, убрать на проде)
+	// Если ни Resend, ни SMTP не настроены – возвращаем код клиенту
+	if os.Getenv("RESEND_API_KEY") == "" && os.Getenv("SMTP_EMAIL") == "" {
+		return c.Status(201).JSON(fiber.Map{
+			"message":           "Verification code generated",
+			"email":             user.Email,
+			"verification_code": code,
+		})
+	}
+
 	return c.Status(201).JSON(fiber.Map{
-		"message":           "Verification code generated",
-		"email":             user.Email,
-		"verification_code": code,
+		"message": "Verification code sent to your email",
+		"email":   user.Email,
 	})
 }
 
@@ -109,6 +118,50 @@ func (h *AuthHandler) VerifyEmail(c *fiber.Ctx) error {
 	h.db.Save(&user)
 
 	return c.JSON(fiber.Map{"message": "Email verified successfully"})
+}
+
+// ── Повторная отправка кода ─────────────────────────────
+type ResendVerificationRequest struct {
+	Email string `json:"email"`
+}
+
+func (h *AuthHandler) ResendVerificationCode(c *fiber.Ctx) error {
+	var req ResendVerificationRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	var user models.User
+	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.IsVerified {
+		return c.Status(400).JSON(fiber.Map{"error": "Email already verified"})
+	}
+
+	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+	user.VerificationCode = code
+	h.db.Save(&user)
+
+	go func() {
+		if os.Getenv("RESEND_API_KEY") != "" {
+			if err := email.SendVerificationCode(user.Email, code); err != nil {
+				log.Printf("Failed to resend verification email: %v", err)
+			}
+		} else {
+			log.Printf("Resent verification code for %s: %s", user.Email, code)
+		}
+	}()
+
+	if os.Getenv("RESEND_API_KEY") == "" && os.Getenv("SMTP_EMAIL") == "" {
+		return c.JSON(fiber.Map{
+			"message":           "New verification code generated",
+			"verification_code": code,
+		})
+	}
+
+	return c.JSON(fiber.Map{"message": "New code sent to your email"})
 }
 
 // ── Логин ───────────────────────────────────────────────

@@ -46,7 +46,6 @@ const RegisterPage = () => {
         password: form.password,
       })
 
-      // Если сервер вернул код (dev‑режим), сразу показываем модалку с ним
       if (res.data.verification_code) {
         setVerificationCode(res.data.verification_code)
       }
@@ -74,6 +73,19 @@ const RegisterPage = () => {
       setError(error.response?.data?.error || "Неверный код")
     } finally {
       setVerifying(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    try {
+      const res = await api.post("/auth/resend-verification", { email: form.email })
+      if (res.data.verification_code) {
+        setVerificationCode(res.data.verification_code)
+      }
+      setError("")
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      setError(error.response?.data?.error || "Ошибка отправки кода")
     }
   }
 
@@ -142,6 +154,9 @@ const RegisterPage = () => {
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button onClick={handleVerify} className="w-full" disabled={verifying}>
               {verifying ? "Проверка..." : "Подтвердить"}
+            </Button>
+            <Button variant="link" className="p-0 h-auto text-sm w-full" onClick={handleResendCode}>
+              Отправить код повторно
             </Button>
           </div>
         </DialogContent>

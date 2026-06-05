@@ -17,6 +17,10 @@ type ResendEmail struct {
 
 func SendVerificationCode(to, code string) error {
 	apiKey := os.Getenv("RESEND_API_KEY")
+	if apiKey == "" {
+		return fmt.Errorf("RESEND_API_KEY is not set")
+	}
+
 	from := os.Getenv("RESEND_FROM")
 	if from == "" {
 		from = "onboarding@resend.dev"
@@ -31,20 +35,12 @@ func SendVerificationCode(to, code string) error {
 		HTML:    html,
 	}
 
-	body, err := json.Marshal(email)
-	if err != nil {
-		return fmt.Errorf("failed to marshal email: %w", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
+	body, _ := json.Marshal(email)
+	req, _ := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(body))
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}

@@ -132,6 +132,7 @@ func main() {
 	api.Post("/auth/register", authHandler.Register)
 	api.Post("/auth/login", authHandler.Login)
 	api.Post("/auth/verify-email", authHandler.VerifyEmail)
+	api.Post("/auth/resend-verification", authHandler.ResendVerificationCode)
 	api.Get("/public/courses/:id", courseHandler.GetPublicCourse)
 
 	// Защищённые маршруты
