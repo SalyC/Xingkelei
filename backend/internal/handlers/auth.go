@@ -36,49 +36,6 @@ type RegisterRequest struct {
 	LastName  string `json:"last_name" validate:"required"`
 }
 
-// func (h *AuthHandler) Register(c *fiber.Ctx) error {
-// 	var req RegisterRequest
-// 	if err := c.BodyParser(&req); err != nil {
-// 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
-// 	}
-
-// 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-// 	if err != nil {
-// 		return c.Status(500).JSON(fiber.Map{"error": "Internal server error"})
-// 	}
-
-// 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
-
-// 	user := models.User{
-// 		Email:            req.Email,
-// 		Password:         string(hashedPassword),
-// 		FirstName:        req.FirstName,
-// 		LastName:         req.LastName,
-// 		VerificationCode: code,
-// 		IsVerified:       false,
-// 	}
-
-// 	if err := h.db.Create(&user).Error; err != nil {
-// 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
-// 	}
-
-// 	// Отправляем код в фоне (не блокирует ответ)
-// 	go func() {
-// 		if os.Getenv("SMTP_EMAIL") != "" {
-// 			if err := email.SendVerificationCode(user.Email, code); err != nil {
-// 				log.Printf("Failed to send verification email: %v", err)
-// 			}
-// 		} else {
-// 			log.Printf("SMTP not configured. Verification code for %s: %s", user.Email, code)
-// 		}
-// 	}()
-
-// 	return c.Status(201).JSON(fiber.Map{
-// 		"message": "Verification code sent to your email",
-// 		"email":   user.Email,
-// 	})
-// }
-
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -105,29 +62,20 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
-	// Фоновая отправка (не блокирует ответ)
+	// Попытка отправить письмо (в фоне)
 	go func() {
 		if os.Getenv("SMTP_EMAIL") != "" {
 			if err := email.SendVerificationCode(user.Email, code); err != nil {
 				log.Printf("Failed to send verification email: %v", err)
 			}
-		} else {
-			log.Printf("SMTP not configured. Verification code for %s: %s", user.Email, code)
 		}
 	}()
 
-	// Если SMTP не настроен или режим разработки – возвращаем код клиенту
-	if os.Getenv("SMTP_EMAIL") == "" || os.Getenv("APP_ENV") == "development" {
-		return c.Status(201).JSON(fiber.Map{
-			"message":           "Verification code sent (or displayed for dev)",
-			"email":             user.Email,
-			"verification_code": code, // Только для тестов!
-		})
-	}
-
+	// Всегда возвращаем код клиенту (только для отладки, убрать на проде)
 	return c.Status(201).JSON(fiber.Map{
-		"message": "Verification code sent to your email",
-		"email":   user.Email,
+		"message":           "Verification code generated",
+		"email":             user.Email,
+		"verification_code": code,
 	})
 }
 

@@ -27,33 +27,6 @@ const RegisterPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault()
-  //   setLoading(true)
-  //   setError("")
-
-  //   if (form.password !== form.confirm_password) {
-  //     setError("Пароли не совпадают")
-  //     setLoading(false)
-  //     return
-  //   }
-
-  //   try {
-  //     await api.post("/auth/register", {
-  //       first_name: form.first_name,
-  //       last_name: form.last_name,
-  //       email: form.email,
-  //       password: form.password,
-  //     })
-  //     setShowVerification(true)
-  //   } catch (err: unknown) {
-  //     const error = err as { response?: { data?: { error?: string } } }
-  //     setError(error.response?.data?.error || "Ошибка регистрации")
-  //   } finally {
-  //     setLoading(false)
-  //   }
-  // }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
