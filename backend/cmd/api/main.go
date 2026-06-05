@@ -159,6 +159,7 @@ func main() {
 
 	// Админка (пользователи)
 	protected.Get("/admin/users", middleware.AdminRequired(db), adminHandler.GetUsers)
+	protected.Get("/admin/users/:id/certificates", middleware.AdminRequired(db), adminHandler.GetUserCertificates)
 	protected.Post("/admin/users/:id/toggle-block", middleware.AdminRequired(db), adminHandler.ToggleBlock)
 	protected.Get("/admin/users/:id/courses", middleware.AdminRequired(db), adminHandler.GetUserCourses)
 	protected.Put("/admin/users/:id/role", middleware.AdminRequired(db), adminHandler.UpdateUserRole)

@@ -246,3 +246,25 @@ func (h *AdminHandler) RemoveCertificate(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{"message": "Certificate removed"})
 }
+
+// GetUserCertificates возвращает сертификаты пользователя
+func (h *AdminHandler) GetUserCertificates(c *fiber.Ctx) error {
+	userID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+	var certificates []models.Certificate
+	h.db.Preload("Course").Where("user_id = ?", userID).Find(&certificates)
+
+	var result []fiber.Map
+	for _, cert := range certificates {
+		result = append(result, fiber.Map{
+			"id":           cert.ID,
+			"course_id":    cert.CourseID,
+			"course_title": cert.Course.Title,
+			"issued_at":    cert.IssuedAt,
+			"file_url":     cert.FileURL,
+		})
+	}
+	return c.JSON(fiber.Map{"data": result})
+}

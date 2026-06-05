@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -14,21 +14,20 @@ const PaymentPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [mode, setMode] = useState<"select" | "qr" | "code">("select")
+  const [activating, setActivating] = useState(false)
 
   const handleQrActivate = async () => {
+    setActivating(true)
     try {
       await api.post(`/courses/${params.id}/activate`, { code: "FREEQR2026" })
-      router.push("/dashboard/courses")
     } catch (err) {
-      router.push("/dashboard/courses")
+      // курс, возможно, уже активирован
+    } finally {
+      setActivating(false)
     }
+    window.open("https://t.me/GM_on_the_Rakbot", "_blank")
+    router.push("/dashboard/courses")
   }
-
-  useEffect(() => {
-    if (mode === "qr") {
-      handleQrActivate()
-    }
-  }, [mode])
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,10 +48,30 @@ const PaymentPage = () => {
     return (
       <div className="max-w-md mx-auto space-y-6">
         <Button variant="ghost" onClick={() => setMode("select")}>← Назад</Button>
-        <div className="p-6 text-center">
-          <p>Активируем курс...</p>
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mt-4"></div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>QR-код для получения курса</CardTitle>
+            <CardDescription>
+              Отсканируйте код или нажмите кнопку ниже, чтобы перейти в Telegram и активировать курс
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent("https://t.me/GM_on_the_Rakbot")}`}
+              alt="QR-код Telegram канала"
+              width={250}
+              height={250}
+              className="rounded-xl"
+            />
+            <Button
+              className="mt-6 w-full"
+              onClick={handleQrActivate}
+              disabled={activating}
+            >
+              {activating ? "Активация..." : "Перейти в Telegram и получить курс"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -99,7 +118,7 @@ const PaymentPage = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <Button className="w-full" variant="outline" onClick={() => setMode("qr")}>
-            QR-код (мгновенная активация)
+            QR-код (Telegram)
           </Button>
           <Button className="w-full" variant="outline" onClick={() => setMode("code")}>
             Код доступа
