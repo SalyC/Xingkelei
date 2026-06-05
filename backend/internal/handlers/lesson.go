@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -16,8 +15,6 @@ import (
 	"backend/internal/models"
 )
 
-var dejavuFont embed.FS
-
 type LessonHandler struct {
 	db *gorm.DB
 }
@@ -27,7 +24,7 @@ func NewLessonHandler(db *gorm.DB) *LessonHandler {
 }
 
 func generateCertificatePDF(user models.User, course models.Course, certID uint) (string, error) {
-	// Путь для сохранения (на Render используется /tmp, локально – ./uploads/certificates)
+	// Путь для сохранения (на Render разрешён /tmp, локально можно изменить на "./uploads/certificates")
 	certDir := "/tmp/uploads/certificates"
 	if err := os.MkdirAll(certDir, 0755); err != nil {
 		return "", err
@@ -39,10 +36,11 @@ func generateCertificatePDF(user models.User, course models.Course, certID uint)
 	pdf := gofpdf.New("L", "mm", "A4", "")
 	pdf.AddPage()
 
-	// Читаем встроенный шрифт
-	fontBytes, err := dejavuFont.ReadFile("font/DejaVuSans.ttf")
+	// Читаем шрифт с диска (путь относительно рабочей папки backend)
+	fontPath := filepath.Join("internal", "handlers", "font", "DejaVuSans.ttf")
+	fontBytes, err := os.ReadFile(fontPath)
 	if err != nil {
-		return "", fmt.Errorf("не удалось прочитать шрифт: %w", err)
+		return "", fmt.Errorf("не удалось прочитать шрифт по пути %s: %w", fontPath, err)
 	}
 	pdf.AddUTF8FontFromBytes("DejaVu", "", fontBytes)
 
@@ -85,19 +83,16 @@ func (h *LessonHandler) CompleteLesson(c *fiber.Ctx) error {
 	courseID, _ := strconv.Atoi(c.Params("courseId"))
 	lessonID, _ := strconv.Atoi(c.Params("lessonId"))
 
-	// Проверяем доступ к курсу
 	var userCourse models.UserCourse
 	if err := h.db.Where("user_id = ? AND course_id = ?", userID, courseID).First(&userCourse).Error; err != nil {
 		return c.Status(403).JSON(fiber.Map{"error": "Access denied"})
 	}
 
-	// Проверяем существование урока
 	var lesson models.Lesson
 	if err := h.db.Where("id = ? AND course_id = ?", lessonID, courseID).First(&lesson).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Lesson not found"})
 	}
 
-	// Проверяем, не завершён ли уже
 	var existing models.LessonCompletion
 	if err := h.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).First(&existing).Error; err == nil {
 		return c.Status(409).JSON(fiber.Map{"error": "Lesson already completed"})
@@ -157,7 +152,6 @@ func (h *LessonHandler) CompleteCourse(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Not all lessons completed"})
 	}
 
-	// Проверяем, нет ли уже сертификата
 	var existing models.Certificate
 	if err := h.db.Where("user_id = ? AND course_id = ?", userID, courseID).First(&existing).Error; err == nil {
 		return c.JSON(fiber.Map{
@@ -176,7 +170,6 @@ func (h *LessonHandler) CompleteCourse(c *fiber.Ctx) error {
 	var user models.User
 	h.db.First(&user, userID)
 
-	// Создаём сертификат в БД (пока без файла)
 	certificate := models.Certificate{
 		UserID:   userID,
 		CourseID: uint(courseID),
@@ -190,7 +183,6 @@ func (h *LessonHandler) CompleteCourse(c *fiber.Ctx) error {
 	pdfFilename, err := generateCertificatePDF(user, course, certificate.ID)
 	if err != nil {
 		log.Printf("Failed to generate certificate PDF: %v", err)
-		// оставляем file_url пустым, сертификат без файла
 	} else {
 		certificate.FileURL = "/certificates/" + pdfFilename
 		h.db.Save(&certificate)
