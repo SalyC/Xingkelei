@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface User {
   id: number
@@ -68,6 +75,7 @@ const AdminPage = () => {
 
   const [removeCourseDialog, setRemoveCourseDialog] = useState<{ userId: number; courseId: number; title: string } | null>(null)
 
+  // ---------- Загрузка данных ----------
   const fetchAllCourses = async () => {
     try {
       const res = await api.get("/admin/courses")
@@ -98,6 +106,7 @@ const AdminPage = () => {
     init()
   }, [])
 
+  // ---------- Действия ----------
   const toggleBlock = async (userId: number) => {
     try {
       await api.post(`/admin/users/${userId}/toggle-block`)
@@ -198,6 +207,7 @@ const AdminPage = () => {
     }
   }
 
+  // ---------- Уроки ----------
   const fetchLessons = async (courseId: number) => {
     setSelectedCourseId(courseId)
     try {
@@ -248,6 +258,47 @@ const AdminPage = () => {
     }
   }
 
+  // ---------- Выпадающее меню действий ----------
+  const actionsMenu = (user: User) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant="ghost" size="sm">Действия ▾</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => openGrantDialog(user.id)}>
+          Выдать курс
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => toggleBlock(user.id)}>
+          {user.is_blocked ? "Разблокировать" : "Заблокировать"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openBanDialog(user.id)}>
+          Бан с причиной
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => unbanUser(user.id)}>
+          Разбанить
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => {
+          fetchUserCourses(user.id)
+          setSelectedUser(user.id)
+        }}>
+          Показать курсы
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => fetchUserCertificates(user.id)}>
+          Показать сертификаты
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => changeRole(user.id, user.role === 'admin' ? 'student' : 'admin')}>
+          {user.role === 'admin' ? 'Сделать студентом' : 'Сделать админом'}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => deleteUser(user.id)} className="text-red-600">
+          Удалить пользователя
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   if (loadingUsers) return <div className="p-6">Загрузка пользователей...</div>
 
   return (
@@ -292,22 +343,8 @@ const AdminPage = () => {
                           <p className="text-xs text-gray-500">Причина: {user.ban_reason}</p>
                         )}
                       </td>
-                      <td className="p-2 flex gap-1 flex-wrap">
-                        <Button size="sm" variant="outline" onClick={() => toggleBlock(user.id)}>
-                          {user.is_blocked ? "Разблокировать" : "Заблокировать"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => openBanDialog(user.id)}>
-                          Бан с причиной
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => unbanUser(user.id)}>
-                          Разбанить
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)}>
-                          Удалить
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => openGrantDialog(user.id)}>
-                          Выдать курс
-                        </Button>
+                      <td className="p-2">
+                        {actionsMenu(user)}
                       </td>
                     </tr>
                   ))}
