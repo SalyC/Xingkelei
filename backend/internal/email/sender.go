@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 )
@@ -63,7 +64,8 @@ func SendVerificationCode(to, code string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return fmt.Errorf("brevo returned status %d", resp.StatusCode)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("brevo returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }
