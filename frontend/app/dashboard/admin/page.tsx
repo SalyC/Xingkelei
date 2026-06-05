@@ -7,13 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 interface User {
   id: number
@@ -74,7 +67,6 @@ const AdminPage = () => {
   const [grantCourseId, setGrantCourseId] = useState<number | null>(null)
 
   const [removeCourseDialog, setRemoveCourseDialog] = useState<{ userId: number; courseId: number; title: string } | null>(null)
-  const [removeCertDialog, setRemoveCertDialog] = useState<{ certId: number; title: string } | null>(null)
 
   const fetchAllCourses = async () => {
     try {
@@ -197,53 +189,14 @@ const AdminPage = () => {
     }
   }
 
-  const handleRemoveCertificate = async () => {
-    if (!removeCertDialog) return
+  const handleRemoveCertificate = async (certId: number) => {
     try {
-      await api.delete(`/admin/certificates/${removeCertDialog.certId}`)
-      setRemoveCertDialog(null)
+      await api.delete(`/admin/certificates/${certId}`)
       if (selectedUser) fetchUserCertificates(selectedUser)
     } catch (err) {
       console.error(err)
     }
   }
-
-  const actionsMenu = (user: User) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button variant="ghost" size="sm">Действия ▾</Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => openGrantDialog(user.id)}>
-          Выдать курс
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => toggleBlock(user.id)}>
-          {user.is_blocked ? "Разблокировать" : "Заблокировать"}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => openBanDialog(user.id)}>
-          Бан с причиной
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => unbanUser(user.id)}>
-          Разбанить
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => {
-          fetchUserCourses(user.id)
-          setSelectedUser(user.id)
-        }}>
-          Показать курсы
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeRole(user.id, user.role === 'admin' ? 'student' : 'admin')}>
-          {user.role === 'admin' ? 'Сделать студентом' : 'Сделать админом'}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => deleteUser(user.id)} className="text-red-600">
-          Удалить пользователя
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
 
   const fetchLessons = async (courseId: number) => {
     setSelectedCourseId(courseId)
@@ -339,8 +292,22 @@ const AdminPage = () => {
                           <p className="text-xs text-gray-500">Причина: {user.ban_reason}</p>
                         )}
                       </td>
-                      <td className="p-2">
-                        {actionsMenu(user)}
+                      <td className="p-2 flex gap-1 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => toggleBlock(user.id)}>
+                          {user.is_blocked ? "Разблокировать" : "Заблокировать"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openBanDialog(user.id)}>
+                          Бан с причиной
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => unbanUser(user.id)}>
+                          Разбанить
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)}>
+                          Удалить
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openGrantDialog(user.id)}>
+                          Выдать курс
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -413,7 +380,7 @@ const AdminPage = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setRemoveCertDialog({ certId: cert.id, title: cert.course_title })}
+                            onClick={() => handleRemoveCertificate(cert.id)}
                           >
                             Удалить сертификат
                           </Button>
@@ -428,11 +395,122 @@ const AdminPage = () => {
         </TabsContent>
 
         <TabsContent value="lessons">
-          {/* ... содержимое вкладки уроков без изменений ... */}
+          <Card>
+            <CardHeader><CardTitle>Редактирование уроков</CardTitle></CardHeader>
+            <CardContent>
+              <select
+                className="border rounded p-2"
+                onChange={(e) => fetchLessons(Number(e.target.value))}
+                value={selectedCourseId || ""}
+              >
+                <option value="" disabled>-- курс --</option>
+                {allCourses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+              {selectedCourseId && lessons.length > 0 ? (
+                lessons.map((lesson) => (
+                  <div key={lesson.id} className="border rounded p-3 mt-2">
+                    <p className="font-semibold">{lesson.order}. {lesson.title}</p>
+                    {editingLessonId === lesson.id ? (
+                      <div className="space-y-2 mt-2">
+                        <div>
+                          <label className="text-sm">Видео URL</label>
+                          <Input value={editVideoUrl} onChange={(e) => setEditVideoUrl(e.target.value)} placeholder="YouTube или MP4" />
+                        </div>
+                        <div>
+                          <label className="text-sm">Аудио URL</label>
+                          <Input value={editAudioUrl} onChange={(e) => setEditAudioUrl(e.target.value)} placeholder="MP3 ссылка" />
+                        </div>
+                        <div>
+                          <label className="text-sm">Текст урока</label>
+                          <textarea
+                            className="w-full border rounded p-2"
+                            rows={5}
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            placeholder="Содержание урока..."
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => saveLesson(lesson.id)} disabled={saving}>Сохранить</Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEdit}>Отмена</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 text-sm text-muted-foreground truncate">
+                          {lesson.video_url || "Нет видео"} | {lesson.audio_url || "Нет аудио"}
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => startEdit(lesson)}>Изменить</Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : selectedCourseId ? (
+                <p className="text-muted-foreground mt-2">У курса пока нет уроков</p>
+              ) : null}
+              {message && <p className="text-sm text-green-600 mt-2">{message}</p>}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Диалоги остаются без изменений */}
+      <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Причина бана</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <textarea
+              className="w-full border rounded p-2"
+              placeholder="Укажите причину блокировки"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              rows={3}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBanDialogOpen(false)}>Отмена</Button>
+              <Button onClick={handleBan}>Забанить</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={grantDialogOpen} onOpenChange={setGrantDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Выдать курс пользователю</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <select
+              className="w-full border rounded p-2"
+              value={grantCourseId || ""}
+              onChange={(e) => setGrantCourseId(Number(e.target.value))}
+            >
+              <option value="" disabled>Выберите курс</option>
+              {allCourses.map((c) => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>Отмена</Button>
+              <Button onClick={handleGrantCourse} disabled={!grantCourseId}>Выдать</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!removeCourseDialog} onOpenChange={() => setRemoveCourseDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить курс у пользователя?</DialogTitle>
+          </DialogHeader>
+          <p>Курс {removeCourseDialog?.title} будет удалён. Прогресс пользователя сохранится.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRemoveCourseDialog(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={handleRemoveCourse}>Удалить</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
