@@ -218,3 +218,31 @@ func (h *AdminHandler) GrantCourse(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Course granted successfully"})
 }
+
+// RemoveUserCourse удаляет конкретный курс у пользователя
+func (h *AdminHandler) RemoveUserCourse(c *fiber.Ctx) error {
+	userID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+	courseID, err := strconv.Atoi(c.Params("courseId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid course ID"})
+	}
+	if err := h.db.Where("user_id = ? AND course_id = ?", userID, courseID).Delete(&models.UserCourse{}).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to remove course"})
+	}
+	return c.JSON(fiber.Map{"message": "Course removed from user"})
+}
+
+// RemoveCertificate удаляет сертификат
+func (h *AdminHandler) RemoveCertificate(c *fiber.Ctx) error {
+	certID, err := strconv.Atoi(c.Params("certId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid certificate ID"})
+	}
+	if err := h.db.Delete(&models.Certificate{}, certID).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to remove certificate"})
+	}
+	return c.JSON(fiber.Map{"message": "Certificate removed"})
+}

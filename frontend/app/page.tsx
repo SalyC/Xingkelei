@@ -40,9 +40,6 @@ export default function HomePage() {
               </span>
               <span className={styles.heroAccent}>СИНКЭЛЭЙ</span>
             </h1>
-            <p className={styles.heroSub}>
-              Практические знания, живое общение и системный подход к развитию
-            </p>
           </div>
           <div className={styles.statsRow}>
             <Image src="/4courses.png" alt="4 курса" width={160} height={80} className={styles.statImage} />

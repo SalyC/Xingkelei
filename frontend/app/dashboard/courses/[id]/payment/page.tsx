@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -17,14 +17,18 @@ const PaymentPage = () => {
 
   const handleQrActivate = async () => {
     try {
-      // Бесплатная активация по QR – используем универсальный код FREEQR2026
       await api.post(`/courses/${params.id}/activate`, { code: "FREEQR2026" })
       router.push("/dashboard/courses")
     } catch (err) {
-      // если курс уже есть или ошибка – просто переходим в мои курсы
       router.push("/dashboard/courses")
     }
   }
+
+  useEffect(() => {
+    if (mode === "qr") {
+      handleQrActivate()
+    }
+  }, [mode])
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,26 +48,11 @@ const PaymentPage = () => {
   if (mode === "qr") {
     return (
       <div className="max-w-md mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => setMode("select")}>
-          ← Назад
-        </Button>
-        <Card>
-          <CardHeader>
-            <CardTitle>QR-код оплаты</CardTitle>
-            <CardDescription>Отсканируйте код для получения курса</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <div className="w-64 h-64 bg-gray-200 flex items-center justify-center">
-              <p className="text-muted-foreground">[QR-код заглушка]</p>
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              Курс будет автоматически активирован
-            </p>
-            <Button className="mt-4 w-full" onClick={handleQrActivate}>
-              Активировать бесплатно
-            </Button>
-          </CardContent>
-        </Card>
+        <Button variant="ghost" onClick={() => setMode("select")}>← Назад</Button>
+        <div className="p-6 text-center">
+          <p>Активируем курс...</p>
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mt-4"></div>
+        </div>
       </div>
     )
   }
@@ -71,15 +60,11 @@ const PaymentPage = () => {
   if (mode === "code") {
     return (
       <div className="max-w-md mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => setMode("select")}>
-          ← Назад
-        </Button>
+        <Button variant="ghost" onClick={() => setMode("select")}>← Назад</Button>
         <Card>
           <CardHeader>
             <CardTitle>Введите код доступа</CardTitle>
-            <CardDescription>
-              Используйте специальный код для бесплатного доступа
-            </CardDescription>
+            <CardDescription>Используйте специальный код для бесплатного доступа</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCodeSubmit} className="space-y-4">
@@ -105,20 +90,16 @@ const PaymentPage = () => {
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <Button variant="ghost" onClick={() => router.back()}>
-        ← Назад
-      </Button>
+      <Button variant="ghost" onClick={() => router.back()}>← Назад</Button>
 
       <Card>
         <CardHeader>
           <CardTitle>Выберите тип оплаты</CardTitle>
-          <CardDescription>
-            Для доступа к курсу выберите удобный способ
-          </CardDescription>
+          <CardDescription>Для доступа к курсу выберите удобный способ</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button className="w-full" variant="outline" onClick={() => setMode("qr")}>
-            QR-код
+            QR-код (мгновенная активация)
           </Button>
           <Button className="w-full" variant="outline" onClick={() => setMode("code")}>
             Код доступа

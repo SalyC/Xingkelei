@@ -103,7 +103,7 @@ func main() {
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
 
-	certDir := filepath.Join("/tmp", "uploads", "certificates") 
+	certDir := filepath.Join("/tmp", "uploads", "certificates")
 	if err := os.MkdirAll(certDir, 0755); err != nil {
 		log.Fatal("Failed to create certificate directory:", err)
 	}
@@ -134,6 +134,8 @@ func main() {
 	// Защищённые маршруты
 	protected := api.Group("/", middleware.AuthRequired(db))
 	protected.Post("/admin/users/:id/grant-course", middleware.AdminRequired(db), adminHandler.GrantCourse)
+	protected.Delete("/admin/users/:id/courses/:courseId", middleware.AdminRequired(db), adminHandler.RemoveUserCourse)
+	protected.Delete("/admin/certificates/:certId", middleware.AdminRequired(db), adminHandler.RemoveCertificate)
 
 	// Профиль
 	protected.Get("/auth/me", authHandler.Me)

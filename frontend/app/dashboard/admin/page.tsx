@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface User {
   id: number
@@ -49,17 +56,16 @@ const AdminPage = () => {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
 
-  // Для бана
   const [banReason, setBanReason] = useState("")
   const [banDialogOpen, setBanDialogOpen] = useState(false)
   const [banUserId, setBanUserId] = useState<number | null>(null)
 
-  // Для выдачи курса
   const [grantDialogOpen, setGrantDialogOpen] = useState(false)
   const [grantUserId, setGrantUserId] = useState<number | null>(null)
   const [grantCourseId, setGrantCourseId] = useState<number | null>(null)
 
-  // ---------- ОБЪЯВЛЕНИЕ ФУНКЦИЙ ДО ИХ ВЫЗОВА ----------
+  const [removeCourseDialog, setRemoveCourseDialog] = useState<{ userId: number; courseId: number; title: string } | null>(null)
+  const [removeCertDialog, setRemoveCertDialog] = useState<{ certId: number; title: string } | null>(null)
 
   const fetchAllCourses = async () => {
     try {
@@ -75,7 +81,6 @@ const AdminPage = () => {
     setUsers(res.data.data)
   }
 
-  // ---------- ЭФФЕКТ ----------
   useEffect(() => {
     const init = async () => {
       try {
@@ -92,7 +97,6 @@ const AdminPage = () => {
     init()
   }, [])
 
-  // ---------- ОСТАЛЬНЫЕ ФУНКЦИИ ----------
   const toggleBlock = async (userId: number) => {
     try {
       await api.post(`/admin/users/${userId}/toggle-block`)
@@ -145,6 +149,82 @@ const AdminPage = () => {
     }
   }
 
+  const openGrantDialog = (userId: number) => {
+    setGrantUserId(userId)
+    setGrantCourseId(null)
+    setGrantDialogOpen(true)
+  }
+
+  const handleGrantCourse = async () => {
+    if (!grantUserId || !grantCourseId) return
+    try {
+      await api.post(`/admin/users/${grantUserId}/grant-course`, { course_id: grantCourseId })
+      setGrantDialogOpen(false)
+      alert("Курс успешно выдан")
+    } catch (err) {
+      console.error(err)
+      alert("Ошибка при выдаче курса")
+    }
+  }
+
+  const handleRemoveCourse = async () => {
+    if (!removeCourseDialog) return
+    try {
+      await api.delete(`/admin/users/${removeCourseDialog.userId}/courses/${removeCourseDialog.courseId}`)
+      setRemoveCourseDialog(null)
+      if (selectedUser === removeCourseDialog.userId) fetchUserCourses(removeCourseDialog.userId)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleRemoveCertificate = async () => {
+    if (!removeCertDialog) return
+    try {
+      await api.delete(`/admin/certificates/${removeCertDialog.certId}`)
+      setRemoveCertDialog(null)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const actionsMenu = (user: User) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant="ghost" size="sm">Действия ▾</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => openGrantDialog(user.id)}>
+          Выдать курс
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => toggleBlock(user.id)}>
+          {user.is_blocked ? "Разблокировать" : "Заблокировать"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openBanDialog(user.id)}>
+          Бан с причиной
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => unbanUser(user.id)}>
+          Разбанить
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => {
+          fetchUserCourses(user.id)
+          setSelectedUser(user.id)
+        }}>
+          Показать курсы
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => changeRole(user.id, user.role === 'admin' ? 'student' : 'admin')}>
+          {user.role === 'admin' ? 'Сделать студентом' : 'Сделать админом'}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => deleteUser(user.id)} className="text-red-600">
+          Удалить пользователя
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   const fetchLessons = async (courseId: number) => {
     setSelectedCourseId(courseId)
     try {
@@ -195,24 +275,6 @@ const AdminPage = () => {
     }
   }
 
-  const openGrantDialog = (userId: number) => {
-    setGrantUserId(userId)
-    setGrantCourseId(null)
-    setGrantDialogOpen(true)
-  }
-
-  const handleGrantCourse = async () => {
-    if (!grantUserId || !grantCourseId) return
-    try {
-      await api.post(`/admin/users/${grantUserId}/grant-course`, { course_id: grantCourseId })
-      setGrantDialogOpen(false)
-      alert("Курс успешно выдан")
-    } catch (err) {
-      console.error(err)
-      alert("Ошибка при выдаче курса")
-    }
-  }
-
   if (loadingUsers) return <div className="p-6">Загрузка пользователей...</div>
 
   return (
@@ -247,16 +309,7 @@ const AdminPage = () => {
                       <td className="p-2">{user.id}</td>
                       <td className="p-2">{user.first_name} {user.last_name}</td>
                       <td className="p-2">{user.email}</td>
-                      <td className="p-2">
-                        <select
-                          value={user.role}
-                          onChange={(e) => changeRole(user.id, e.target.value)}
-                          className="border rounded p-1"
-                        >
-                          <option value="student">Студент</option>
-                          <option value="admin">Админ</option>
-                        </select>
-                      </td>
+                      <td className="p-2">{user.role}</td>
                       <td className="p-2">
                         <span className={user.is_blocked ? "text-red-600" : "text-green-600"}>
                           {user.is_blocked ? "Заблокирован" : "Активен"}
@@ -265,22 +318,8 @@ const AdminPage = () => {
                           <p className="text-xs text-gray-500">Причина: {user.ban_reason}</p>
                         )}
                       </td>
-                      <td className="p-2 flex gap-1 flex-wrap">
-                        <Button size="sm" variant="outline" onClick={() => toggleBlock(user.id)}>
-                          {user.is_blocked ? "Разблокировать" : "Заблокировать"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => openBanDialog(user.id)}>
-                          Бан с причиной
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => unbanUser(user.id)}>
-                          Разбанить
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)}>
-                          Удалить
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => openGrantDialog(user.id)}>
-                          Выдать курс
-                        </Button>
+                      <td className="p-2">
+                        {actionsMenu(user)}
                       </td>
                     </tr>
                   ))}
@@ -306,8 +345,19 @@ const AdminPage = () => {
                   {userCourses.length === 0 ? (
                     <p className="text-muted-foreground">Нет курсов</p>
                   ) : (
-                    <ul className="list-disc pl-5">
-                      {userCourses.map((c) => <li key={c.id}>{c.title}</li>)}
+                    <ul className="space-y-2">
+                      {userCourses.map((course) => (
+                        <li key={course.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span>{course.title}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRemoveCourseDialog({ userId: selectedUser, courseId: course.id, title: course.title })}
+                          >
+                            Удалить курс
+                          </Button>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </div>
@@ -376,7 +426,6 @@ const AdminPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Диалог бана */}
       <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -398,7 +447,6 @@ const AdminPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Диалог выдачи курса */}
       <Dialog open={grantDialogOpen} onOpenChange={setGrantDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -419,6 +467,32 @@ const AdminPage = () => {
               <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>Отмена</Button>
               <Button onClick={handleGrantCourse} disabled={!grantCourseId}>Выдать</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!removeCourseDialog} onOpenChange={() => setRemoveCourseDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить курс у пользователя?</DialogTitle>
+          </DialogHeader>
+          <p>Курс {removeCourseDialog?.title} будет удалён. Прогресс пользователя сохранится.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRemoveCourseDialog(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={handleRemoveCourse}>Удалить</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!removeCertDialog} onOpenChange={() => setRemoveCertDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить сертификат?</DialogTitle>
+          </DialogHeader>
+          <p>Сертификат {removeCertDialog?.title} будет удалён безвозвратно.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRemoveCertDialog(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={handleRemoveCertificate}>Удалить</Button>
           </div>
         </DialogContent>
       </Dialog>
