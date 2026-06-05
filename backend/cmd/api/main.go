@@ -79,11 +79,12 @@ func main() {
 	if err != nil {
 		if hashErr == nil {
 			adminUser = models.User{
-				Email:     adminEmail,
-				Password:  string(hashedPassword),
-				FirstName: adminFirst,
-				LastName:  adminLast,
-				Role:      "admin",
+				Email:      adminEmail,
+				Password:   string(hashedPassword),
+				FirstName:  adminFirst,
+				LastName:   adminLast,
+				Role:       "admin",
+				IsVerified: true,
 			}
 			if createErr := db.Create(&adminUser).Error; createErr != nil {
 				log.Printf("Failed to create admin user: %v", createErr)
@@ -99,6 +100,7 @@ func main() {
 		if hashErr == nil {
 			adminUser.Password = string(hashedPassword)
 		}
+		adminUser.IsVerified = true
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
