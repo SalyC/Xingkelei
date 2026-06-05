@@ -101,8 +101,6 @@ func (h *AdminHandler) UpdateLessonAdmin(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
 	}
-
-	// Обновляем только переданные поля
 	if req.VideoURL != "" {
 		lesson.VideoURL = req.VideoURL
 	}
@@ -115,7 +113,6 @@ func (h *AdminHandler) UpdateLessonAdmin(c *fiber.Ctx) error {
 	if req.Content != "" {
 		lesson.Content = req.Content
 	}
-
 	h.db.Save(&lesson)
 	return c.JSON(fiber.Map{"message": "Lesson updated", "data": lesson})
 }
@@ -147,38 +144,6 @@ func (h *AdminHandler) DeleteUser(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Deletion failed"})
 	}
 	return c.JSON(fiber.Map{"message": "User deleted"})
-}
-
-// CreateLesson создаёт новый урок для курса
-type CreateLessonRequest struct {
-	Title    string `json:"title"`
-	Content  string `json:"content"`
-	VideoURL string `json:"video_url"`
-	AudioURL string `json:"audio_url"`
-	Order    int    `json:"order"`
-}
-
-func (h *AdminHandler) CreateLesson(c *fiber.Ctx) error {
-	courseID, err := strconv.Atoi(c.Params("courseId"))
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid course ID"})
-	}
-	var req CreateLessonRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
-	}
-	lesson := models.Lesson{
-		CourseID: uint(courseID),
-		Title:    req.Title,
-		Content:  req.Content,
-		VideoURL: req.VideoURL,
-		AudioURL: req.AudioURL,
-		Order:    req.Order,
-	}
-	if err := h.db.Create(&lesson).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create lesson"})
-	}
-	return c.Status(201).JSON(fiber.Map{"data": lesson})
 }
 
 // BanUser банит пользователя с причиной
@@ -216,4 +181,40 @@ func (h *AdminHandler) UnbanUser(c *fiber.Ctx) error {
 	user.BannedAt = nil
 	h.db.Save(&user)
 	return c.JSON(fiber.Map{"data": user})
+}
+
+// GrantCourse выдаёт пользователю указанный курс
+type GrantCourseRequest struct {
+	CourseID uint `json:"course_id"`
+}
+
+func (h *AdminHandler) GrantCourse(c *fiber.Ctx) error {
+	userID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+	var req GrantCourseRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	var course models.Course
+	if err := h.db.First(&course, req.CourseID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Course not found"})
+	}
+
+	var existing models.UserCourse
+	if err := h.db.Where("user_id = ? AND course_id = ?", userID, req.CourseID).First(&existing).Error; err == nil {
+		return c.Status(409).JSON(fiber.Map{"error": "User already has this course"})
+	}
+
+	userCourse := models.UserCourse{
+		UserID:   uint(userID),
+		CourseID: req.CourseID,
+	}
+	if err := h.db.Create(&userCourse).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to grant course"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Course granted successfully"})
 }

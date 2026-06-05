@@ -54,25 +54,45 @@ const AdminPage = () => {
   const [banDialogOpen, setBanDialogOpen] = useState(false)
   const [banUserId, setBanUserId] = useState<number | null>(null)
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await api.get("/admin/users")
-        setUsers(res.data.data)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoadingUsers(false)
-      }
+  // Для выдачи курса
+  const [grantDialogOpen, setGrantDialogOpen] = useState(false)
+  const [grantUserId, setGrantUserId] = useState<number | null>(null)
+  const [grantCourseId, setGrantCourseId] = useState<number | null>(null)
+
+  // ---------- ОБЪЯВЛЕНИЕ ФУНКЦИЙ ДО ИХ ВЫЗОВА ----------
+
+  const fetchAllCourses = async () => {
+    try {
+      const res = await api.get("/admin/courses")
+      setAllCourses(res.data.data || [])
+    } catch (err) {
+      console.error(err)
     }
-    fetchUsers()
-  }, [])
+  }
 
   const refreshUsers = async () => {
     const res = await api.get("/admin/users")
     setUsers(res.data.data)
   }
 
+  // ---------- ЭФФЕКТ ----------
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const usersRes = await api.get("/admin/users")
+        setUsers(usersRes.data.data)
+        const coursesRes = await api.get("/admin/courses")
+        setAllCourses(coursesRes.data.data || [])
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoadingUsers(false)
+      }
+    }
+    init()
+  }, [])
+
+  // ---------- ОСТАЛЬНЫЕ ФУНКЦИИ ----------
   const toggleBlock = async (userId: number) => {
     try {
       await api.post(`/admin/users/${userId}/toggle-block`)
@@ -125,19 +145,9 @@ const AdminPage = () => {
     }
   }
 
-  const fetchAllCourses = async () => {
-    try {
-      const res = await api.get("/admin/courses")
-      setAllCourses(res.data.data || [])
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   const fetchLessons = async (courseId: number) => {
     setSelectedCourseId(courseId)
     try {
-      // Используем пользовательский эндпоинт, который точно возвращает уроки
       const res = await api.get(`/courses/${courseId}`)
       const courseData = res.data.data?.course
       if (courseData && courseData.lessons) {
@@ -182,6 +192,24 @@ const AdminPage = () => {
       setMessage("Ошибка сохранения")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const openGrantDialog = (userId: number) => {
+    setGrantUserId(userId)
+    setGrantCourseId(null)
+    setGrantDialogOpen(true)
+  }
+
+  const handleGrantCourse = async () => {
+    if (!grantUserId || !grantCourseId) return
+    try {
+      await api.post(`/admin/users/${grantUserId}/grant-course`, { course_id: grantCourseId })
+      setGrantDialogOpen(false)
+      alert("Курс успешно выдан")
+    } catch (err) {
+      console.error(err)
+      alert("Ошибка при выдаче курса")
     }
   }
 
@@ -249,6 +277,9 @@ const AdminPage = () => {
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)}>
                           Удалить
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openGrantDialog(user.id)}>
+                          Выдать курс
                         </Button>
                       </td>
                     </tr>
@@ -362,6 +393,31 @@ const AdminPage = () => {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setBanDialogOpen(false)}>Отмена</Button>
               <Button onClick={handleBan}>Забанить</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог выдачи курса */}
+      <Dialog open={grantDialogOpen} onOpenChange={setGrantDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Выдать курс пользователю</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <select
+              className="w-full border rounded p-2"
+              value={grantCourseId || ""}
+              onChange={(e) => setGrantCourseId(Number(e.target.value))}
+            >
+              <option value="" disabled>Выберите курс</option>
+              {allCourses.map((c) => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>Отмена</Button>
+              <Button onClick={handleGrantCourse} disabled={!grantCourseId}>Выдать</Button>
             </div>
           </div>
         </DialogContent>

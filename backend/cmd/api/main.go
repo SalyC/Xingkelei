@@ -102,16 +102,22 @@ func main() {
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
+
+	certDir := filepath.Join("/tmp", "uploads", "certificates") 
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		log.Fatal("Failed to create certificate directory:", err)
+	}
 	// ========================================================================
 
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://xingkeleiclub.vercel.app/",
+		AllowOrigins:     "https://xingkeleiclub.vercel.app/, http://localhost:3000",
 		AllowCredentials: true,
 	}))
 
 	app.Static("/avatars", avatarDir)
+	app.Static("/certificates", certDir)
 
 	authHandler := handlers.NewAuthHandler(db, nil) // nil вместо Redis
 	courseHandler := handlers.NewCourseHandler(db)
@@ -127,6 +133,7 @@ func main() {
 
 	// Защищённые маршруты
 	protected := api.Group("/", middleware.AuthRequired(db))
+	protected.Post("/admin/users/:id/grant-course", middleware.AdminRequired(db), adminHandler.GrantCourse)
 
 	// Профиль
 	protected.Get("/auth/me", authHandler.Me)

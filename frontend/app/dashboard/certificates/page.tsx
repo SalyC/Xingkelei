@@ -90,14 +90,19 @@ const CertificatesPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <a
-                  href={cert.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Открыть сертификат (PDF)
-                </a>
+                {cert.file_url ? (
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api','')}${cert.file_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                    download
+                  >
+                    Скачать PDF
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">Файл не найден</span>
+                )}
               </CardContent>
             </Card>
           ))}
