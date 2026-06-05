@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,9 @@ import (
 	"backend/internal/models"
 )
 
+//go:embed font/DejaVuSans.ttf
+var dejavuFont embed.FS
+
 type LessonHandler struct {
 	db *gorm.DB
 }
@@ -24,7 +28,6 @@ func NewLessonHandler(db *gorm.DB) *LessonHandler {
 }
 
 func generateCertificatePDF(user models.User, course models.Course, certID uint) (string, error) {
-	// Путь для сохранения (на Render разрешён /tmp, локально можно изменить на "./uploads/certificates")
 	certDir := "/tmp/uploads/certificates"
 	if err := os.MkdirAll(certDir, 0755); err != nil {
 		return "", err
@@ -36,11 +39,9 @@ func generateCertificatePDF(user models.User, course models.Course, certID uint)
 	pdf := gofpdf.New("L", "mm", "A4", "")
 	pdf.AddPage()
 
-	// Читаем шрифт с диска (путь относительно рабочей папки backend)
-	fontPath := filepath.Join("internal", "handlers", "font", "DejaVuSans.ttf")
-	fontBytes, err := os.ReadFile(fontPath)
+	fontBytes, err := dejavuFont.ReadFile("font/DejaVuSans.ttf")
 	if err != nil {
-		return "", fmt.Errorf("не удалось прочитать шрифт по пути %s: %w", fontPath, err)
+		return "", fmt.Errorf("failed to read embedded font: %w", err)
 	}
 	pdf.AddUTF8FontFromBytes("DejaVu", "", fontBytes)
 
@@ -77,7 +78,6 @@ func generateCertificatePDF(user models.User, course models.Course, certID uint)
 	return filename, nil
 }
 
-// CompleteLesson отмечает урок как выполненный
 func (h *LessonHandler) CompleteLesson(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	courseID, _ := strconv.Atoi(c.Params("courseId"))
@@ -111,7 +111,6 @@ func (h *LessonHandler) CompleteLesson(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Lesson completed", "completed": true})
 }
 
-// GetCourseProgress возвращает прогресс пользователя по курсу
 func (h *LessonHandler) GetCourseProgress(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	courseID, _ := strconv.Atoi(c.Params("id"))
@@ -137,7 +136,6 @@ func (h *LessonHandler) GetCourseProgress(c *fiber.Ctx) error {
 	})
 }
 
-// CompleteCourse завершает курс и выпускает сертификат
 func (h *LessonHandler) CompleteCourse(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	courseID, _ := strconv.Atoi(c.Params("id"))
@@ -179,7 +177,6 @@ func (h *LessonHandler) CompleteCourse(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create certificate"})
 	}
 
-	// Генерируем PDF
 	pdfFilename, err := generateCertificatePDF(user, course, certificate.ID)
 	if err != nil {
 		log.Printf("Failed to generate certificate PDF: %v", err)
@@ -200,7 +197,6 @@ func (h *LessonHandler) CompleteCourse(c *fiber.Ctx) error {
 	})
 }
 
-// GetMyCertificates возвращает все сертификаты пользователя
 func (h *LessonHandler) GetMyCertificates(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 

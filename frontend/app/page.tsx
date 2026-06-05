@@ -25,8 +25,6 @@ export default function HomePage() {
     <main className={styles.body}>
       <div className={styles.container}>
         <section className={`${styles.section} ${styles.heroSection}`}>
-          
-
           <div className={styles.heroText}>
             <h1 className={styles.heroTitle}>
               <span className={styles.heroTitleRow}>
@@ -37,16 +35,21 @@ export default function HomePage() {
                       <path d="M10 5V15" stroke="white" strokeLinecap="round"/>
                       <path d="M5 10H15" stroke="white" strokeLinecap="round"/>
                     </svg>
-                  Ты сможешь изменить жизнь</span>
+                  Ты сможешь изменить жизнь
                 </span>
+              </span>
               <span className={styles.heroAccent}>СИНКЭЛЭЙ</span>
             </h1>
+            <p className={styles.heroSub}>
+              Практические знания, живое общение и системный подход к развитию
+            </p>
           </div>
           <div className={styles.statsRow}>
             <Image src="/4courses.png" alt="4 курса" width={160} height={80} className={styles.statImage} />
             <Image src="/20materials.png" alt="20+ материалов" width={180} height={80} className={styles.statImage} />
           </div>
-                    {/* Главное фото + кнопки Вход/Регистрация */}
+
+          {/* Главное фото + кнопки Вход/Регистрация */}
           <div className={styles.heroImageContainer}>
             <Image
               src="/mainphoto.png"
@@ -81,7 +84,7 @@ export default function HomePage() {
                     className={styles.courseImage}
                   />
                   <BuyButton courseId={course.id} className={styles.btnBuy} />
-                  <Link href={`/courses/${course.id}`} className={styles.courseLink} prefetch={false}>
+                  <Link href={`/courses/${course.id}`} className={styles.courseLink}>
                     Подробнее о курсе →
                   </Link>
                 </div>
