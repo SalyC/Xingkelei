@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const RegisterPage = () => {
   const router = useRouter()
@@ -19,6 +19,9 @@ const RegisterPage = () => {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showVerification, setShowVerification] = useState(false)
+  const [verificationCode, setVerificationCode] = useState("")
+  const [verifying, setVerifying] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -42,12 +45,29 @@ const RegisterPage = () => {
         email: form.email,
         password: form.password,
       })
-      router.push("/login")
+      setShowVerification(true)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
       setError(error.response?.data?.error || "Ошибка регистрации")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleVerify = async () => {
+    setVerifying(true)
+    setError("")
+    try {
+      await api.post("/auth/verify-email", {
+        email: form.email,
+        code: verificationCode,
+      })
+      router.push("/login")
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      setError(error.response?.data?.error || "Неверный код")
+    } finally {
+      setVerifying(false)
     }
   }
 
@@ -62,62 +82,23 @@ const RegisterPage = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Имя</label>
-              <Input
-                name="first_name"
-                placeholder="Иван"
-                value={form.first_name}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
+              <Input name="first_name" placeholder="Иван" value={form.first_name} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Фамилия</label>
-              <Input
-                name="last_name"
-                placeholder="Иванов"
-                value={form.last_name}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
+              <Input name="last_name" placeholder="Иванов" value={form.last_name} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Почта</label>
-              <Input
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
+              <Input name="email" type="email" placeholder="you@example.com" value={form.email} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Пароль</label>
-              <Input
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={handleChange}
-                required
-                minLength={6}
-                disabled={loading}
-              />
+              <Input name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} required minLength={6} disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Повторить пароль</label>
-              <Input
-                name="confirm_password"
-                type="password"
-                placeholder="••••••••"
-                value={form.confirm_password}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
+              <Input name="confirm_password" type="password" placeholder="••••••••" value={form.confirm_password} onChange={handleChange} required minLength={6} disabled={loading} />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
           </CardContent>
@@ -127,13 +108,38 @@ const RegisterPage = () => {
             </Button>
             <p className="text-sm text-muted-foreground">
               Уже есть аккаунт?{" "}
-              <Link href="/login" className="text-primary underline">
+              <a href="/login" className="text-primary underline">
                 Войти
-              </Link>
+              </a>
             </p>
           </CardFooter>
         </form>
       </Card>
+
+      {/* Модальное окно верификации */}
+      <Dialog open={showVerification} onOpenChange={setShowVerification}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Подтверждение email</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              На ваш email <strong>{form.email}</strong> отправлен код подтверждения. Введите его ниже:
+            </p>
+            <Input
+              placeholder="Код из письма"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              maxLength={6}
+              disabled={verifying}
+            />
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <Button onClick={handleVerify} className="w-full" disabled={verifying}>
+              {verifying ? "Проверка..." : "Подтвердить"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

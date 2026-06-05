@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
+
+	"backend/internal/email"
+	"backend/internal/models"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-
-	"backend/internal/models"
 )
 
 type AuthHandler struct {
@@ -27,7 +29,6 @@ func NewAuthHandler(db *gorm.DB, redis *redis.Client) *AuthHandler {
 }
 
 // ── Регистрация ─────────────────────────────────────────
-
 type RegisterRequest struct {
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=6"`
@@ -38,44 +39,78 @@ type RegisterRequest struct {
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
-		log.Printf("Register: failed to parse body: %v", err)
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
-	log.Printf("Register attempt: email=%s, first_name=%s, last_name=%s", req.Email, req.FirstName, req.LastName)
-
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Register: failed to hash password: %v", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Internal server error"})
 	}
 
+	// Генерируем 6-значный код подтверждения
+	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+
 	user := models.User{
-		Email:     req.Email,
-		Password:  string(hashedPassword),
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
+		Email:            req.Email,
+		Password:         string(hashedPassword),
+		FirstName:        req.FirstName,
+		LastName:         req.LastName,
+		VerificationCode: code,
+		IsVerified:       false,
 	}
 
 	if err := h.db.Create(&user).Error; err != nil {
-		log.Printf("Register: db create error: %v", err)
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
-	log.Printf("User registered: id=%d, email=%s", user.ID, user.Email)
+	// Отправляем код, если SMTP настроен
+	if os.Getenv("SMTP_EMAIL") != "" {
+		if err := email.SendVerificationCode(user.Email, code); err != nil {
+			log.Printf("Failed to send verification email: %v", err)
+		}
+	} else {
+		log.Printf("SMTP not configured. Verification code for %s: %s", user.Email, code)
+	}
+
 	return c.Status(201).JSON(fiber.Map{
-		"message": "User registered successfully",
-		"user": fiber.Map{
-			"id":         user.ID,
-			"email":      user.Email,
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-		},
+		"message": "Verification code sent to your email",
+		"email":   user.Email,
 	})
 }
 
-// ── Логин ───────────────────────────────────────────────
+// ── Подтверждение email ─────────────────────────────────
+type VerifyEmailRequest struct {
+	Email string `json:"email"`
+	Code  string `json:"code"`
+}
 
+func (h *AuthHandler) VerifyEmail(c *fiber.Ctx) error {
+	var req VerifyEmailRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	var user models.User
+	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.IsVerified {
+		return c.Status(400).JSON(fiber.Map{"error": "Email already verified"})
+	}
+
+	if user.VerificationCode != req.Code {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid code"})
+	}
+
+	user.IsVerified = true
+	user.VerificationCode = ""
+	h.db.Save(&user)
+
+	return c.JSON(fiber.Map{"message": "Email verified successfully"})
+}
+
+// ── Логин ───────────────────────────────────────────────
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -84,23 +119,14 @@ type LoginRequest struct {
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req LoginRequest
 	if err := c.BodyParser(&req); err != nil {
-		log.Printf("Login: failed to parse body: %v", err)
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
-	log.Printf("Login attempt: email=%s", req.Email)
-
 	var user models.User
 	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Printf("Login: user not found: %s", req.Email)
-		} else {
-			log.Printf("Login: db error: %v", err)
-		}
 		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
-	// Проверка блокировки
 	if user.IsBlocked {
 		return c.Status(403).JSON(fiber.Map{
 			"error":     "Account is blocked",
@@ -110,8 +136,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	if !user.IsVerified {
+		return c.Status(403).JSON(fiber.Map{
+			"error":    "Email not verified",
+			"verified": false,
+		})
+	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		log.Printf("Login: password mismatch for %s", req.Email)
 		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
@@ -123,11 +155,9 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
-		log.Printf("Login: failed to sign token: %v", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Could not generate token"})
 	}
 
-	log.Printf("Login successful: %s", user.Email)
 	return c.JSON(fiber.Map{
 		"access_token": tokenString,
 		"user": fiber.Map{
