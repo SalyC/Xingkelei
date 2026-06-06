@@ -73,7 +73,7 @@ func main() {
 	adminFirst := "Alexander"
 	adminLast := "Sadist"
 
-	var adminUser models.User // ← объявляем до проверки
+	var adminUser models.User
 
 	err = db.Where("email = ?", adminEmail).First(&adminUser).Error
 
@@ -90,7 +90,7 @@ func main() {
 				FirstName:  adminFirst,
 				LastName:   adminLast,
 				Role:       "admin",
-				IsVerified: true, // ✅ сразу верифицируем админа
+				IsVerified: true,
 			}
 			if createErr := db.Create(&adminUser).Error; createErr != nil {
 				log.Printf("Failed to create admin user: %v", createErr)
@@ -109,9 +109,10 @@ func main() {
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
+	// ===========================================
 
-	app := fiber.New()
 	go telegram.StartBot()
+	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
