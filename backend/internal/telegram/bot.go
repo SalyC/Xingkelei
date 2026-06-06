@@ -34,9 +34,10 @@ type GetUpdatesResponse struct {
 func StartBot() {
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken == "" {
-		log.Println("TELEGRAM_BOT_TOKEN not set, Telegram bot disabled")
+		log.Println("TELEGRAM_BOT_TOKEN is empty – Telegram bot will not start")
 		return
 	}
+	log.Println("Telegram bot started successfully")
 
 	var offset int64 = 0
 	baseURL := fmt.Sprintf("https://api.telegram.org/bot%s", botToken)
@@ -52,6 +53,7 @@ func StartBot() {
 		for _, update := range updates {
 			offset = update.UpdateID + 1
 			if update.Message.Text != "" && update.Message.Chat.ID != 0 {
+				log.Printf("Received message from chat %d: %s", update.Message.Chat.ID, update.Message.Text)
 				handleMessage(baseURL, update.Message)
 			}
 		}
@@ -67,9 +69,15 @@ func getUpdates(baseURL string, offset int64) ([]Update, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("getUpdates response: %s", string(body)) // временно, для отладки
+
 	var result GetUpdatesResponse
 	if err := json.Unmarshal(body, &result); err != nil {
+		log.Printf("JSON parse error: %v", err)
 		return nil, err
 	}
 	return result.Result, nil
@@ -84,16 +92,30 @@ func handleMessage(baseURL string, msg Message) {
 		if len(parts) == 2 && parts[1] != "" {
 			code := parts[1]
 			reply := fmt.Sprintf("Ваш код подтверждения: %s", code)
-			sendMessage(baseURL, chatID, reply)
+			if err := sendMessage(baseURL, chatID, reply); err != nil {
+				log.Printf("Failed to send message: %v", err)
+			}
 		} else {
 			sendMessage(baseURL, chatID, "Привет! Я бот Клуба Синкэлэй. Чтобы подтвердить аккаунт, перейдите по ссылке, которую вы получили при регистрации.")
 		}
-	} else {
-		sendMessage(baseURL, chatID, "Я ожидаю код подтверждения. Используйте /start КОД или перейдите по ссылке из регистрации.")
+		return
 	}
+
+	// На любой другой текст отправляем подсказку
+	sendMessage(baseURL, chatID, "Я ожидаю код подтверждения. Используйте /start КОД или перейдите по ссылке из регистрации.")
 }
 
-func sendMessage(baseURL string, chatID int64, text string) {
+func sendMessage(baseURL string, chatID int64, text string) error {
 	url := fmt.Sprintf("%s/sendMessage?chat_id=%d&text=%s", baseURL, chatID, text)
-	http.Get(url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("http get: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
 }
