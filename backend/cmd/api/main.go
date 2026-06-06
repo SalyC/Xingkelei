@@ -114,8 +114,8 @@ func main() {
 	go telegram.StartBot()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://xingkeleiclub.vercel.app",
-		AllowCredentials: true,
+		AllowOrigins: "*",
+		// AllowCredentials: true,
 	}))
 
 	app.Static("/avatars", avatarDir)
