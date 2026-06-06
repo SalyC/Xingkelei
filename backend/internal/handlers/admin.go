@@ -132,7 +132,7 @@ func (h *AdminHandler) UpdateUserRole(c *fiber.Ctx) error {
 
 func (h *AdminHandler) DeleteUser(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
-	if err := h.db.Delete(&models.User{}, id).Error; err != nil {
+	if err := h.db.Unscoped().Delete(&models.User{}, id).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Deletion failed"})
 	}
 	return c.JSON(fiber.Map{"message": "User deleted"})
