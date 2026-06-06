@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -52,6 +53,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	if err := h.db.Create(&user).Error; err != nil {
+		log.Printf("Registration failed for email %s: %v", req.Email, err)
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 

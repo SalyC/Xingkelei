@@ -55,6 +55,7 @@ func main() {
 	db.Exec("DELETE FROM lesson_completions")
 	db.Exec("DELETE FROM certificates")
 	db.Exec("DELETE FROM users")
+	db.Exec("DROP TABLE IF EXISTS users CASCADE")
 
 	if err := database.AutoMigrate(db); err != nil {
 		log.Fatal("Migration failed:", err)
