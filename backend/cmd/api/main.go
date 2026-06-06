@@ -86,6 +86,7 @@ func main() {
 				FirstName:  adminFirst,
 				LastName:   adminLast,
 				Role:       "admin",
+				Username:   "admin",
 				IsVerified: true,
 			}
 			if createErr := db.Create(&adminUser).Error; createErr != nil {
@@ -95,21 +96,18 @@ func main() {
 			}
 		}
 	} else {
-		// Пользователь существует — обновляем роль и пароль
 		adminUser.Role = "admin"
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
 		if hashErr == nil {
 			adminUser.Password = string(hashedPassword)
 		}
+		if adminUser.Username == "" {
+			adminUser.Username = "admin"
+		}
 		adminUser.IsVerified = true
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
-	}
-
-	certDir := filepath.Join("/tmp", "uploads", "certificates")
-	if err := os.MkdirAll(certDir, 0755); err != nil {
-		log.Fatal("Failed to create certificate directory:", err)
 	}
 	// ========================================================================
 
