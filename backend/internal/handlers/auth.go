@@ -3,13 +3,11 @@ package handlers
 import (
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
 
-	"backend/internal/email"
 	"backend/internal/models"
 
 	"github.com/gofiber/fiber/v2"
@@ -62,33 +60,21 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
-	// Отправка через Brevo (если ключ задан)
-	if os.Getenv("BREVO_API_KEY") != "" {
-		if err := email.SendVerificationCode(user.Email, code); err != nil {
-			log.Printf("Failed to send verification email: %v", err)
-			// Возвращаем код клиенту с предупреждением
-			return c.Status(201).JSON(fiber.Map{
-				"message":           "Verification code generated (email delivery failed, contact support)",
-				"email":             user.Email,
-				"verification_code": code,
-			})
-		}
-		// Письмо успешно отправлено
-		return c.Status(201).JSON(fiber.Map{
-			"message": "Verification code sent to your email",
-			"email":   user.Email,
-		})
+	// Формируем ссылку на Telegram-бота
+	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
+	if botUsername == "" {
+		botUsername = "SinkeleiVerifyBot" // fallback, если переменная не задана
 	}
+	telegramLink := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, code)
 
-	// Dev-режим (ключа нет) – возвращаем код
 	return c.Status(201).JSON(fiber.Map{
-		"message":           "Verification code generated",
-		"email":             user.Email,
-		"verification_code": code,
+		"message":       "To verify your account, open Telegram bot",
+		"email":         user.Email,
+		"telegram_link": telegramLink,
 	})
 }
 
-// ── Подтверждение email ─────────────────────────────────
+// ── Подтверждение email (код из Telegram) ───────────────
 type VerifyEmailRequest struct {
 	Email string `json:"email"`
 	Code  string `json:"code"`
@@ -120,7 +106,7 @@ func (h *AuthHandler) VerifyEmail(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Email verified successfully"})
 }
 
-// ── Повторная отправка кода ─────────────────────────────
+// ── Повторная отправка кода (через Telegram) ────────────
 type ResendVerificationRequest struct {
 	Email string `json:"email"`
 }
@@ -144,21 +130,15 @@ func (h *AuthHandler) ResendVerificationCode(c *fiber.Ctx) error {
 	user.VerificationCode = code
 	h.db.Save(&user)
 
-	if os.Getenv("BREVO_API_KEY") != "" {
-		if err := email.SendVerificationCode(user.Email, code); err != nil {
-			log.Printf("Failed to resend verification email: %v", err)
-			return c.JSON(fiber.Map{
-				"message":           "New code generated (email delivery failed)",
-				"verification_code": code,
-			})
-		}
-		return c.JSON(fiber.Map{"message": "New code sent to your email"})
+	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
+	if botUsername == "" {
+		botUsername = "SinkeleiVerifyBot"
 	}
+	telegramLink := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, code)
 
-	// Dev-режим
 	return c.JSON(fiber.Map{
-		"message":           "New code generated",
-		"verification_code": code,
+		"message":       "New code generated. Open Telegram bot to get it",
+		"telegram_link": telegramLink,
 	})
 }
 

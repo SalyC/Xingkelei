@@ -20,6 +20,7 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [showVerification, setShowVerification] = useState(false)
+  const [telegramLink, setTelegramLink] = useState("")
   const [verificationCode, setVerificationCode] = useState("")
   const [verifying, setVerifying] = useState(false)
 
@@ -46,10 +47,7 @@ const RegisterPage = () => {
         password: form.password,
       })
 
-      if (res.data.verification_code) {
-        setVerificationCode(res.data.verification_code)
-      }
-
+      setTelegramLink(res.data.telegram_link)
       setShowVerification(true)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
@@ -73,19 +71,6 @@ const RegisterPage = () => {
       setError(error.response?.data?.error || "Неверный код")
     } finally {
       setVerifying(false)
-    }
-  }
-
-  const handleResendCode = async () => {
-    try {
-      const res = await api.post("/auth/resend-verification", { email: form.email })
-      if (res.data.verification_code) {
-        setVerificationCode(res.data.verification_code)
-      }
-      setError("")
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || "Ошибка отправки кода")
     }
   }
 
@@ -138,14 +123,24 @@ const RegisterPage = () => {
       <Dialog open={showVerification} onOpenChange={setShowVerification}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Подтверждение email</DialogTitle>
+            <DialogTitle>Подтверждение через Telegram</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              На ваш email <strong>{form.email}</strong> отправлен код подтверждения. Введите его ниже:
+              Для получения кода подтверждения перейдите в нашего бота:
+            </p>
+            <a
+              href={telegramLink}
+              target="_blank"
+              className="inline-flex w-full items-center justify-center px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            >
+              Открыть бота
+            </a>
+            <p className="text-xs text-gray-500">
+              Бот автоматически покажет ваш код. Вернитесь сюда и введите его.
             </p>
             <Input
-              placeholder="Код из письма"
+              placeholder="Код из Telegram"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
               maxLength={6}
@@ -154,9 +149,6 @@ const RegisterPage = () => {
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button onClick={handleVerify} className="w-full" disabled={verifying}>
               {verifying ? "Проверка..." : "Подтвердить"}
-            </Button>
-            <Button variant="link" className="p-0 h-auto text-sm w-full" onClick={handleResendCode}>
-              Отправить код повторно
             </Button>
           </div>
         </DialogContent>

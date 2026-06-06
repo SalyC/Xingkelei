@@ -18,6 +18,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	"backend/internal/telegram"
 	// "backend/internal/redis" // пока отключён
 )
 
@@ -61,6 +62,7 @@ func main() {
 	// log.Println("Connected to Redis")
 
 	seedDatabase(db)
+	go telegram.StartBot()
 
 	// ========== Принудительное создание / обновление администратора ==========
 	adminEmail := "GM_on_the_rakbot@gmail.com"
