@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 const LoginPage = () => {
   const router = useRouter()
-  const [form, setForm] = useState({ username: "", password: "" })
+  const [form, setForm] = useState({ email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -36,15 +36,8 @@ const LoginPage = () => {
             banned?: boolean
             reason?: string
             banned_at?: string
-            verified?: boolean
           }
         }
-      }
-
-      if (axiosError.response?.data?.verified === false) {
-        setError("Аккаунт не подтверждён. Проверьте Telegram или зарегистрируйтесь заново.")
-        setLoading(false)
-        return
       }
 
       if (axiosError.response?.data?.banned) {
@@ -59,7 +52,7 @@ const LoginPage = () => {
         return
       }
 
-      setError(axiosError.response?.data?.error || "Неверное имя пользователя или пароль")
+      setError(axiosError.response?.data?.error || "Неверный email или пароль")
       setLoading(false)
     }
   }
@@ -74,8 +67,8 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Имя пользователя</label>
-              <Input name="username" value={form.username} onChange={handleChange} required disabled={loading} />
+              <label className="text-sm font-medium">Email</label>
+              <Input name="email" type="email" value={form.email} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Пароль</label>

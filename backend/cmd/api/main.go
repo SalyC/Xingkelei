@@ -18,7 +18,6 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/models"
-	"backend/internal/telegram"
 )
 
 func main() {
@@ -52,7 +51,7 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
-	// Очистка пользователей и связанных данных, чтобы избежать конфликта уникальных индексов
+	// Очистка пользователей и связанных данных для чистой миграции
 	db.Exec("DELETE FROM user_courses")
 	db.Exec("DELETE FROM lesson_completions")
 	db.Exec("DELETE FROM certificates")
@@ -72,14 +71,13 @@ func main() {
 
 	seedDatabase(db)
 
-	// ========== Создание / обновление администратора ==========
+	// ========== Создание администратора ==========
 	adminEmail := "GM_on_the_rakbot@gmail.com"
 	adminPass := "test2026"
 	adminFirst := "Alexander"
 	adminLast := "Sadist"
 
 	var adminUser models.User
-	// Поскольку мы только что удалили всех пользователей, запись не найдётся
 	err = db.Where("email = ?", adminEmail).First(&adminUser).Error
 
 	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
@@ -88,15 +86,14 @@ func main() {
 	}
 
 	if err != nil {
+		// Администратор не найден – создаём
 		if hashErr == nil {
 			adminUser = models.User{
-				Email:      adminEmail,
-				Password:   string(hashedPassword),
-				FirstName:  adminFirst,
-				LastName:   adminLast,
-				Role:       "admin",
-				Username:   "admin",
-				IsVerified: true,
+				Email:     adminEmail,
+				Password:  string(hashedPassword),
+				FirstName: adminFirst,
+				LastName:  adminLast,
+				Role:      "admin",
 			}
 			if createErr := db.Create(&adminUser).Error; createErr != nil {
 				log.Printf("Failed to create admin user: %v", createErr)
@@ -105,23 +102,17 @@ func main() {
 			}
 		}
 	} else {
+		// Администратор существует – обновляем роль
 		adminUser.Role = "admin"
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
 		if hashErr == nil {
 			adminUser.Password = string(hashedPassword)
 		}
-		if adminUser.Username == "" {
-			adminUser.Username = "admin"
-		}
-		adminUser.IsVerified = true
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
-	// ==========================================================
-
-	// Запускаем Telegram-бота в фоне
-	go telegram.StartBot()
+	// =============================================
 
 	app := fiber.New()
 	app.Use(logger.New())
@@ -133,7 +124,7 @@ func main() {
 	app.Static("/avatars", avatarDir)
 	app.Static("/certificates", certDir)
 
-	authHandler := handlers.NewAuthHandler(db, nil)
+	authHandler := handlers.NewAuthHandler(db, nil) // nil вместо Redis
 	courseHandler := handlers.NewCourseHandler(db)
 	lessonHandler := handlers.NewLessonHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
@@ -143,8 +134,6 @@ func main() {
 	// Публичные маршруты
 	api.Post("/auth/register", authHandler.Register)
 	api.Post("/auth/login", authHandler.Login)
-	api.Post("/auth/verify-email", authHandler.VerifyEmail)
-	api.Post("/auth/resend-verification", authHandler.ResendVerificationCode)
 	api.Get("/public/courses/:id", courseHandler.GetPublicCourse)
 
 	// Защищённые маршруты
@@ -281,15 +270,6 @@ func seedDatabase(db *gorm.DB) {
 				Order:    i + 1,
 			}
 			db.Create(&lesson)
-		}
-	}
-
-	// Привязка первого пользователя к первому курсу (если есть)
-	var user models.User
-	if err := db.First(&user).Error; err == nil {
-		var firstCourse models.Course
-		if err := db.First(&firstCourse).Error; err == nil {
-			db.Create(&models.UserCourse{UserID: user.ID, CourseID: firstCourse.ID})
 		}
 	}
 }
