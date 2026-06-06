@@ -52,6 +52,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	if err := h.db.Create(&user).Error; err != nil {
+		// Если ошибка связана с уникальностью email
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 

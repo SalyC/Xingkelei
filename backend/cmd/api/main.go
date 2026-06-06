@@ -18,6 +18,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	// "backend/internal/redis" // пока отключён
 )
 
 func main() {
@@ -51,11 +52,8 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
-	// Очистка пользователей и связанных данных для чистой миграции
-	db.Exec("DELETE FROM user_courses")
-	db.Exec("DELETE FROM lesson_completions")
-	db.Exec("DELETE FROM certificates")
-	db.Exec("DELETE FROM users")
+	// Принудительно удаляем таблицу users, если она содержит неправильные поля
+	db.Exec("DROP TABLE IF EXISTS users CASCADE")
 
 	if err := database.AutoMigrate(db); err != nil {
 		log.Fatal("Migration failed:", err)
@@ -64,10 +62,7 @@ func main() {
 
 	// Redis временно отключён
 	// redisClient, err := redis.NewClient()
-	// if err != nil {
-	// 	log.Fatal("Failed to connect to Redis:", err)
-	// }
-	// log.Println("Connected to Redis")
+	// ...
 
 	seedDatabase(db)
 
@@ -86,7 +81,6 @@ func main() {
 	}
 
 	if err != nil {
-		// Администратор не найден – создаём
 		if hashErr == nil {
 			adminUser = models.User{
 				Email:     adminEmail,
@@ -102,7 +96,6 @@ func main() {
 			}
 		}
 	} else {
-		// Администратор существует – обновляем роль
 		adminUser.Role = "admin"
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
