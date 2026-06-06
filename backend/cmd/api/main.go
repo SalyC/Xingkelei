@@ -52,6 +52,12 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
+	// Очистка пользователей и связанных данных, чтобы избежать конфликта уникальных индексов
+	db.Exec("DELETE FROM user_courses")
+	db.Exec("DELETE FROM lesson_completions")
+	db.Exec("DELETE FROM certificates")
+	db.Exec("DELETE FROM users")
+
 	if err := database.AutoMigrate(db); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
@@ -73,6 +79,7 @@ func main() {
 	adminLast := "Sadist"
 
 	var adminUser models.User
+	// Поскольку мы только что удалили всех пользователей, запись не найдётся
 	err = db.Where("email = ?", adminEmail).First(&adminUser).Error
 
 	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
@@ -81,7 +88,6 @@ func main() {
 	}
 
 	if err != nil {
-		// Администратор не найден – создаём
 		if hashErr == nil {
 			adminUser = models.User{
 				Email:      adminEmail,
@@ -99,7 +105,6 @@ func main() {
 			}
 		}
 	} else {
-		// Администратор существует – обновляем поля
 		adminUser.Role = "admin"
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
@@ -128,7 +133,7 @@ func main() {
 	app.Static("/avatars", avatarDir)
 	app.Static("/certificates", certDir)
 
-	authHandler := handlers.NewAuthHandler(db, nil) // nil вместо Redis
+	authHandler := handlers.NewAuthHandler(db, nil)
 	courseHandler := handlers.NewCourseHandler(db)
 	lessonHandler := handlers.NewLessonHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
