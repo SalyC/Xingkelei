@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -62,8 +63,8 @@ func StartBot() {
 }
 
 func getUpdates(baseURL string, offset int64) ([]Update, error) {
-	url := fmt.Sprintf("%s/getUpdates?offset=%d&timeout=5", baseURL, offset)
-	resp, err := http.Get(url)
+	u := fmt.Sprintf("%s/getUpdates?offset=%d&timeout=5", baseURL, offset)
+	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,6 @@ func getUpdates(baseURL string, offset int64) ([]Update, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("getUpdates response: %s", string(body)) // временно, для отладки
 
 	var result GetUpdatesResponse
 	if err := json.Unmarshal(body, &result); err != nil {
@@ -101,13 +101,15 @@ func handleMessage(baseURL string, msg Message) {
 		return
 	}
 
-	// На любой другой текст отправляем подсказку
 	sendMessage(baseURL, chatID, "Я ожидаю код подтверждения. Используйте /start КОД или перейдите по ссылке из регистрации.")
 }
 
 func sendMessage(baseURL string, chatID int64, text string) error {
-	url := fmt.Sprintf("%s/sendMessage?chat_id=%d&text=%s", baseURL, chatID, text)
-	resp, err := http.Get(url)
+	// Кодируем текст, чтобы избежать ошибок с кириллицей
+	encodedText := url.QueryEscape(text)
+	u := fmt.Sprintf("%s/sendMessage?chat_id=%d&text=%s", baseURL, chatID, encodedText)
+
+	resp, err := http.Get(u)
 	if err != nil {
 		return fmt.Errorf("http get: %w", err)
 	}
