@@ -222,7 +222,7 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Password changed successfully"})
 }
 
-// ── Загрузка аватара ─────────────────────────────────────
+// ── Загрузка аватара ────────────────────────────────────
 func (h *AuthHandler) UploadAvatar(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 

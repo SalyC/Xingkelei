@@ -25,7 +25,6 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
-	// Папки для аватаров и сертификатов
 	avatarDir := filepath.Join("/tmp", "uploads", "avatars")
 	certDir := filepath.Join("/tmp", "uploads", "certificates")
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
