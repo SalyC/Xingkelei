@@ -19,7 +19,6 @@ import (
 	"backend/internal/middleware"
 	"backend/internal/models"
 	"backend/internal/telegram"
-	// "backend/internal/redis" // пока отключён
 )
 
 func main() {
@@ -53,76 +52,68 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
-	// Принудительно удаляем таблицу users, если она содержит неправильные поля
-	db.Exec("DROP TABLE IF EXISTS users CASCADE")
-
 	if err := database.AutoMigrate(db); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
 	log.Println("Database migration completed")
 
-	// Redis временно отключён
-	// redisClient, err := redis.NewClient()
-	// ...
-
 	seedDatabase(db)
 
-	// ========== Создание администратора ==========
+	// ========== Создание / перезапись администратора ==========
 	adminEmail := "GM_on_the_rakbot@gmail.com"
 	adminPass := "test2026"
 	adminFirst := "Alexander"
 	adminLast := "Sadist"
 
-	var adminUser models.User
-
-	err = db.Where("email = ?", adminEmail).First(&adminUser).Error
-
-	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
-	if hashErr != nil {
-		log.Printf("Failed to hash admin password: %v", hashErr)
+	// Всегда генерируем свежий хеш
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("Failed to hash admin password: %v", err)
 	}
 
-	if err != nil {
-		if hashErr == nil {
-			adminUser = models.User{
-				Email:      adminEmail,
-				Password:   string(hashedPassword),
-				FirstName:  adminFirst,
-				LastName:   adminLast,
-				Role:       "admin",
-				IsVerified: true,
-			}
-			if createErr := db.Create(&adminUser).Error; createErr != nil {
-				log.Printf("Failed to create admin user: %v", createErr)
-			} else {
-				log.Printf("Admin user created: %s", adminEmail)
-			}
+	var adminUser models.User
+	result := db.Where("email = ?", adminEmail).First(&adminUser)
+
+	if result.Error != nil {
+		// Администратор не найден – создаём
+		adminUser = models.User{
+			Email:      adminEmail,
+			Password:   string(hashedPassword),
+			FirstName:  adminFirst,
+			LastName:   adminLast,
+			Role:       "admin",
+			IsVerified: true,
+		}
+		if err := db.Create(&adminUser).Error; err != nil {
+			log.Printf("Failed to create admin: %v", err)
+		} else {
+			log.Println("Admin user created")
 		}
 	} else {
-		adminUser.Role = "admin"
+		// Администратор существует – перезаписываем пароль и верификацию
+		adminUser.Password = string(hashedPassword)
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
-		if hashErr == nil {
-			adminUser.Password = string(hashedPassword)
-		}
+		adminUser.Role = "admin"
 		adminUser.IsVerified = true
 		db.Save(&adminUser)
-		log.Printf("Admin user updated: %s", adminEmail)
+		log.Println("Admin user updated")
 	}
-	// ===========================================
+	// ==========================================================
 
+	// Запуск Telegram‑бота в горутине
 	go telegram.StartBot()
+
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		// AllowCredentials: true,
+		AllowOrigins: "*", // для теста; потом замените на домен Vercel
 	}))
 
 	app.Static("/avatars", avatarDir)
 	app.Static("/certificates", certDir)
 
-	authHandler := handlers.NewAuthHandler(db, nil) // nil вместо Redis
+	authHandler := handlers.NewAuthHandler(db, nil)
 	courseHandler := handlers.NewCourseHandler(db)
 	lessonHandler := handlers.NewLessonHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
