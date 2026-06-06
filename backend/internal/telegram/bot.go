@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -79,9 +80,22 @@ func handleMessage(baseURL string, msg Message) {
 	if msg.Chat.ID == 0 {
 		return
 	}
-	// Ответ на /start
-	text := "Привет! Я бот Клуба Синкэлэй. Чтобы подтвердить аккаунт, перейдите по ссылке, которую вы получили при регистрации."
-	sendMessage(baseURL, msg.Chat.ID, text)
+
+	text := msg.Text
+
+	// Проверяем, есть ли команда /start с кодом
+	if strings.HasPrefix(text, "/start") {
+		// Извлекаем код после команды
+		parts := strings.SplitN(text, " ", 2)
+		if len(parts) == 2 && parts[1] != "" {
+			code := parts[1]
+			reply := fmt.Sprintf("Ваш код подтверждения: %s", code)
+			sendMessage(baseURL, msg.Chat.ID, reply)
+			return
+		}
+		sendMessage(baseURL, msg.Chat.ID, "Привет! Я бот Клуба Синкэлэй. Чтобы подтвердить аккаунт, перейдите по ссылке, которую вы получили при регистрации.")
+		return
+	}
 }
 
 func sendMessage(baseURL string, chatID int64, text string) {
