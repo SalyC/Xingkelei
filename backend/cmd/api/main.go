@@ -19,7 +19,6 @@ import (
 	"backend/internal/middleware"
 	"backend/internal/models"
 	"backend/internal/telegram"
-	// "backend/internal/redis" // пока отключён
 )
 
 func main() {
@@ -27,10 +26,14 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
-	// Временная папка для аватаров (на Render разрешена)
+	// Папки для аватаров и сертификатов
 	avatarDir := filepath.Join("/tmp", "uploads", "avatars")
+	certDir := filepath.Join("/tmp", "uploads", "certificates")
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
 		log.Fatal("Failed to create avatar directory:", err)
+	}
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		log.Fatal("Failed to create certificate directory:", err)
 	}
 
 	dsn := fmt.Sprintf(
@@ -62,9 +65,8 @@ func main() {
 	// log.Println("Connected to Redis")
 
 	seedDatabase(db)
-	go telegram.StartBot()
 
-	// ========== Принудительное создание / обновление администратора ==========
+	// ========== Создание / обновление администратора ==========
 	adminEmail := "GM_on_the_rakbot@gmail.com"
 	adminPass := "test2026"
 	adminFirst := "Alexander"
@@ -79,6 +81,7 @@ func main() {
 	}
 
 	if err != nil {
+		// Администратор не найден – создаём
 		if hashErr == nil {
 			adminUser = models.User{
 				Email:      adminEmail,
@@ -96,6 +99,7 @@ func main() {
 			}
 		}
 	} else {
+		// Администратор существует – обновляем поля
 		adminUser.Role = "admin"
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
@@ -109,12 +113,15 @@ func main() {
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
-	// ========================================================================
+	// ==========================================================
+
+	// Запускаем Telegram-бота в фоне
+	go telegram.StartBot()
 
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://xingkeleiclub.vercel.app/, http://localhost:3000",
+		AllowOrigins:     "https://xingkeleiclub.vercel.app",
 		AllowCredentials: true,
 	}))
 
@@ -137,11 +144,7 @@ func main() {
 
 	// Защищённые маршруты
 	protected := api.Group("/", middleware.AuthRequired(db))
-	protected.Post("/admin/users/:id/grant-course", middleware.AdminRequired(db), adminHandler.GrantCourse)
-	protected.Delete("/admin/users/:id/courses/:courseId", middleware.AdminRequired(db), adminHandler.RemoveUserCourse)
-	protected.Delete("/admin/certificates/:certId", middleware.AdminRequired(db), adminHandler.RemoveCertificate)
 
-	// Профиль
 	protected.Get("/auth/me", authHandler.Me)
 	protected.Put("/auth/profile", authHandler.UpdateProfile)
 	protected.Post("/auth/change-password", authHandler.ChangePassword)
@@ -163,13 +166,16 @@ func main() {
 
 	// Админка (пользователи)
 	protected.Get("/admin/users", middleware.AdminRequired(db), adminHandler.GetUsers)
-	protected.Get("/admin/users/:id/certificates", middleware.AdminRequired(db), adminHandler.GetUserCertificates)
 	protected.Post("/admin/users/:id/toggle-block", middleware.AdminRequired(db), adminHandler.ToggleBlock)
 	protected.Get("/admin/users/:id/courses", middleware.AdminRequired(db), adminHandler.GetUserCourses)
 	protected.Put("/admin/users/:id/role", middleware.AdminRequired(db), adminHandler.UpdateUserRole)
 	protected.Delete("/admin/users/:id", middleware.AdminRequired(db), adminHandler.DeleteUser)
 	protected.Post("/admin/users/:id/ban", middleware.AdminRequired(db), adminHandler.BanUser)
 	protected.Post("/admin/users/:id/unban", middleware.AdminRequired(db), adminHandler.UnbanUser)
+	protected.Post("/admin/users/:id/grant-course", middleware.AdminRequired(db), adminHandler.GrantCourse)
+	protected.Delete("/admin/users/:id/courses/:courseId", middleware.AdminRequired(db), adminHandler.RemoveUserCourse)
+	protected.Get("/admin/users/:id/certificates", middleware.AdminRequired(db), adminHandler.GetUserCertificates)
+	protected.Delete("/admin/certificates/:certId", middleware.AdminRequired(db), adminHandler.RemoveCertificate)
 
 	// Админка (контент)
 	protected.Get("/admin/courses", middleware.AdminRequired(db), adminHandler.GetAllCoursesForAdmin)
