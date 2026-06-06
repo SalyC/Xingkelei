@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -53,7 +52,6 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	if err := h.db.Create(&user).Error; err != nil {
-		log.Printf("Registration failed for email %s: %v", req.Email, err)
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
@@ -224,7 +222,7 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Password changed successfully"})
 }
 
-// ── Загрузка аватара ────────────────────────────────────
+// ── Загрузка аватара ─────────────────────────────────────
 func (h *AuthHandler) UploadAvatar(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 

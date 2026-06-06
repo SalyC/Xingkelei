@@ -21,5 +21,3 @@ type User struct {
 	BanReason string         `json:"ban_reason,omitempty"`
 	BannedAt  *time.Time     `json:"banned_at,omitempty"`
 }
-
-//a

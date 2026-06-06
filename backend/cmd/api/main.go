@@ -25,6 +25,7 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
+	// Папки для аватаров и сертификатов
 	avatarDir := filepath.Join("/tmp", "uploads", "avatars")
 	certDir := filepath.Join("/tmp", "uploads", "certificates")
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
@@ -50,24 +51,10 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
-	// Очистка пользователей и связанных данных для чистой миграции
-	db.Exec("DELETE FROM user_courses")
-	db.Exec("DELETE FROM lesson_completions")
-	db.Exec("DELETE FROM certificates")
-	db.Exec("DELETE FROM users")
-	db.Exec("DROP TABLE IF EXISTS users CASCADE")
-
 	if err := database.AutoMigrate(db); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
 	log.Println("Database migration completed")
-
-	// Redis временно отключён
-	// redisClient, err := redis.NewClient()
-	// if err != nil {
-	// 	log.Fatal("Failed to connect to Redis:", err)
-	// }
-	// log.Println("Connected to Redis")
 
 	seedDatabase(db)
 
@@ -86,7 +73,6 @@ func main() {
 	}
 
 	if err != nil {
-		// Администратор не найден – создаём
 		if hashErr == nil {
 			adminUser = models.User{
 				Email:     adminEmail,
@@ -102,7 +88,6 @@ func main() {
 			}
 		}
 	} else {
-		// Администратор существует – обновляем роль
 		adminUser.Role = "admin"
 		adminUser.FirstName = adminFirst
 		adminUser.LastName = adminLast
@@ -117,14 +102,13 @@ func main() {
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		// AllowCredentials: true,
+		AllowOrigins: "https://xingkeleiclub.vercel.app",
 	}))
 
 	app.Static("/avatars", avatarDir)
 	app.Static("/certificates", certDir)
 
-	authHandler := handlers.NewAuthHandler(db, nil) // nil вместо Redis
+	authHandler := handlers.NewAuthHandler(db, nil)
 	courseHandler := handlers.NewCourseHandler(db)
 	lessonHandler := handlers.NewLessonHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
