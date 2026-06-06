@@ -28,7 +28,7 @@ func NewAuthHandler(db *gorm.DB, redis *redis.Client) *AuthHandler {
 
 // ── Регистрация ─────────────────────────────────────────
 type RegisterRequest struct {
-	Email     string `json:"email" validate:"required,email"`
+	Username  string `json:"username" validate:"required"`
 	Password  string `json:"password" validate:"required,min=6"`
 	FirstName string `json:"first_name" validate:"required"`
 	LastName  string `json:"last_name" validate:"required"`
@@ -48,7 +48,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
 
 	user := models.User{
-		Email:            req.Email,
+		Username:         req.Username,
 		Password:         string(hashedPassword),
 		FirstName:        req.FirstName,
 		LastName:         req.LastName,
@@ -57,27 +57,26 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	if err := h.db.Create(&user).Error; err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
+		return c.Status(400).JSON(fiber.Map{"error": "Username already taken"})
 	}
 
-	// Формируем ссылку на Telegram-бота
 	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
 	if botUsername == "" {
-		botUsername = "SinkeleiVerifyBot" // fallback, если переменная не задана
+		botUsername = "SinkeleiVerifyBot"
 	}
 	telegramLink := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, code)
 
 	return c.Status(201).JSON(fiber.Map{
 		"message":       "To verify your account, open Telegram bot",
-		"email":         user.Email,
+		"username":      user.Username,
 		"telegram_link": telegramLink,
 	})
 }
 
-// ── Подтверждение email (код из Telegram) ───────────────
+// ── Подтверждение через Telegram ────────────────────────
 type VerifyEmailRequest struct {
-	Email string `json:"email"`
-	Code  string `json:"code"`
+	Username string `json:"username"`
+	Code     string `json:"code"`
 }
 
 func (h *AuthHandler) VerifyEmail(c *fiber.Ctx) error {
@@ -87,12 +86,12 @@ func (h *AuthHandler) VerifyEmail(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := h.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
 	if user.IsVerified {
-		return c.Status(400).JSON(fiber.Map{"error": "Email already verified"})
+		return c.Status(400).JSON(fiber.Map{"error": "Already verified"})
 	}
 
 	if user.VerificationCode != req.Code {
@@ -103,12 +102,12 @@ func (h *AuthHandler) VerifyEmail(c *fiber.Ctx) error {
 	user.VerificationCode = ""
 	h.db.Save(&user)
 
-	return c.JSON(fiber.Map{"message": "Email verified successfully"})
+	return c.JSON(fiber.Map{"message": "Account verified successfully"})
 }
 
-// ── Повторная отправка кода (через Telegram) ────────────
+// ── Повторная отправка кода ─────────────────────────────
 type ResendVerificationRequest struct {
-	Email string `json:"email"`
+	Username string `json:"username"`
 }
 
 func (h *AuthHandler) ResendVerificationCode(c *fiber.Ctx) error {
@@ -118,12 +117,12 @@ func (h *AuthHandler) ResendVerificationCode(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := h.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
 	if user.IsVerified {
-		return c.Status(400).JSON(fiber.Map{"error": "Email already verified"})
+		return c.Status(400).JSON(fiber.Map{"error": "Already verified"})
 	}
 
 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
@@ -144,7 +143,7 @@ func (h *AuthHandler) ResendVerificationCode(c *fiber.Ctx) error {
 
 // ── Логин ───────────────────────────────────────────────
 type LoginRequest struct {
-	Email    string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
@@ -155,7 +154,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := h.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
 		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
@@ -170,7 +169,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	if !user.IsVerified {
 		return c.Status(403).JSON(fiber.Map{
-			"error":    "Email not verified",
+			"error":    "Account not verified",
 			"verified": false,
 		})
 	}
@@ -180,9 +179,9 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+		"user_id":  user.ID,
+		"username": user.Username,
+		"exp":      time.Now().Add(time.Hour * 72).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -194,14 +193,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		"access_token": tokenString,
 		"user": fiber.Map{
 			"id":         user.ID,
-			"email":      user.Email,
+			"username":   user.Username,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
 		},
 	})
 }
 
-// ── Получение своего профиля ─────────────────────────────
+// ── Профиль ─────────────────────────────────────────────
 func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 
@@ -213,7 +212,7 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"data": fiber.Map{
 			"id":         user.ID,
-			"email":      user.Email,
+			"username":   user.Username,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
 			"role":       user.Role,
@@ -226,7 +225,7 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 type UpdateProfileRequest struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
+	Username  string `json:"username"`
 }
 
 func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
@@ -242,16 +241,16 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	if req.Email != user.Email {
+	if req.Username != user.Username {
 		var existing models.User
-		if err := h.db.Where("email = ? AND id != ?", req.Email, userID).First(&existing).Error; err == nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Email already in use"})
+		if err := h.db.Where("username = ? AND id != ?", req.Username, userID).First(&existing).Error; err == nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Username already taken"})
 		}
 	}
 
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
-	user.Email = req.Email
+	user.Username = req.Username
 
 	if err := h.db.Save(&user).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update profile"})
@@ -260,7 +259,7 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"data": fiber.Map{
 			"id":         user.ID,
-			"email":      user.Email,
+			"username":   user.Username,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
 			"role":       user.Role,

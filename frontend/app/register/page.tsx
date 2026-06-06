@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const RegisterPage = () => {
   const router = useRouter()
   const [form, setForm] = useState({
+    username: "",
     first_name: "",
     last_name: "",
-    email: "",
     password: "",
     confirm_password: "",
   })
@@ -41,9 +41,9 @@ const RegisterPage = () => {
 
     try {
       const res = await api.post("/auth/register", {
+        username: form.username,
         first_name: form.first_name,
         last_name: form.last_name,
-        email: form.email,
         password: form.password,
       })
 
@@ -62,7 +62,7 @@ const RegisterPage = () => {
     setError("")
     try {
       await api.post("/auth/verify-email", {
-        email: form.email,
+        username: form.username,
         code: verificationCode,
       })
       router.push("/login")
@@ -84,16 +84,16 @@ const RegisterPage = () => {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <label className="text-sm font-medium">Имя пользователя</label>
+              <Input name="username" placeholder="nickname" value={form.username} onChange={handleChange} required disabled={loading} />
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Имя</label>
               <Input name="first_name" placeholder="Иван" value={form.first_name} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Фамилия</label>
               <Input name="last_name" placeholder="Иванов" value={form.last_name} onChange={handleChange} required disabled={loading} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Почта</label>
-              <Input name="email" type="email" placeholder="you@example.com" value={form.email} onChange={handleChange} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Пароль</label>
