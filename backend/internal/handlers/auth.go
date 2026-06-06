@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,18 +12,16 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type AuthHandler struct {
-	db    *gorm.DB
-	redis *redis.Client
+	db *gorm.DB
 }
 
-func NewAuthHandler(db *gorm.DB, redis *redis.Client) *AuthHandler {
-	return &AuthHandler{db: db, redis: redis}
+func NewAuthHandler(db *gorm.DB, _ interface{}) *AuthHandler {
+	return &AuthHandler{db: db}
 }
 
 // ── Регистрация ─────────────────────────────────────────
@@ -44,27 +43,64 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Internal server error"})
 	}
 
+	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+
 	user := models.User{
-		Email:     req.Email,
-		Password:  string(hashedPassword),
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
+		Email:            req.Email,
+		Password:         string(hashedPassword),
+		FirstName:        req.FirstName,
+		LastName:         req.LastName,
+		VerificationCode: code,
+		IsVerified:       false,
 	}
 
 	if err := h.db.Create(&user).Error; err != nil {
-		// Если ошибка связана с уникальностью email
 		return c.Status(400).JSON(fiber.Map{"error": "Email already exists"})
 	}
 
+	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
+	if botUsername == "" {
+		botUsername = "SinkeleiVerifyBot"
+	}
+	telegramLink := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, code)
+
 	return c.Status(201).JSON(fiber.Map{
-		"message": "User registered successfully",
-		"user": fiber.Map{
-			"id":         user.ID,
-			"email":      user.Email,
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-		},
+		"message":       "Register success. Verify via Telegram bot.",
+		"email":         user.Email,
+		"telegram_link": telegramLink,
 	})
+}
+
+// ── Подтверждение через Telegram ────────────────────────
+type VerifyTelegramRequest struct {
+	Email string `json:"email"`
+	Code  string `json:"code"`
+}
+
+func (h *AuthHandler) VerifyTelegram(c *fiber.Ctx) error {
+	var req VerifyTelegramRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	var user models.User
+	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.IsVerified {
+		return c.Status(400).JSON(fiber.Map{"error": "Account already verified"})
+	}
+
+	if user.VerificationCode != req.Code {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid verification code"})
+	}
+
+	user.IsVerified = true
+	user.VerificationCode = ""
+	h.db.Save(&user)
+
+	return c.JSON(fiber.Map{"message": "Account verified successfully"})
 }
 
 // ── Логин ───────────────────────────────────────────────
@@ -90,6 +126,13 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 			"banned":    true,
 			"reason":    user.BanReason,
 			"banned_at": user.BannedAt,
+		})
+	}
+
+	if !user.IsVerified {
+		return c.Status(403).JSON(fiber.Map{
+			"error":    "Account not verified. Check Telegram bot.",
+			"verified": false,
 		})
 	}
 

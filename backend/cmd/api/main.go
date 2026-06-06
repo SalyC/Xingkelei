@@ -18,6 +18,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	"backend/internal/telegram"
 	// "backend/internal/redis" // пока отключён
 )
 
@@ -72,7 +73,8 @@ func main() {
 	adminFirst := "Alexander"
 	adminLast := "Sadist"
 
-	var adminUser models.User
+	var adminUser models.User // ← объявляем до проверки
+
 	err = db.Where("email = ?", adminEmail).First(&adminUser).Error
 
 	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
@@ -83,11 +85,12 @@ func main() {
 	if err != nil {
 		if hashErr == nil {
 			adminUser = models.User{
-				Email:     adminEmail,
-				Password:  string(hashedPassword),
-				FirstName: adminFirst,
-				LastName:  adminLast,
-				Role:      "admin",
+				Email:      adminEmail,
+				Password:   string(hashedPassword),
+				FirstName:  adminFirst,
+				LastName:   adminLast,
+				Role:       "admin",
+				IsVerified: true, // ✅ сразу верифицируем админа
 			}
 			if createErr := db.Create(&adminUser).Error; createErr != nil {
 				log.Printf("Failed to create admin user: %v", createErr)
@@ -102,12 +105,13 @@ func main() {
 		if hashErr == nil {
 			adminUser.Password = string(hashedPassword)
 		}
+		adminUser.IsVerified = true
 		db.Save(&adminUser)
 		log.Printf("Admin user updated: %s", adminEmail)
 	}
-	// =============================================
 
 	app := fiber.New()
+	go telegram.StartBot()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "https://xingkeleiclub.vercel.app",
@@ -128,6 +132,7 @@ func main() {
 	api.Post("/auth/register", authHandler.Register)
 	api.Post("/auth/login", authHandler.Login)
 	api.Get("/public/courses/:id", courseHandler.GetPublicCourse)
+	api.Post("/auth/verify-telegram", authHandler.VerifyTelegram)
 
 	// Защищённые маршруты
 	protected := api.Group("/", middleware.AuthRequired(db))
